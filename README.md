@@ -1,5 +1,132 @@
 # AI Auto-Healing Incident Response Agent
 
+## Prerequisites (Phase 1)
+
+Install these tools before first run.
+
+| Tool | Required Version | Check Command |
+|---|---|---|
+| Git | 2.40+ | `git --version` |
+| Go | 1.22+ | `go version` |
+| Node.js | 22 LTS+ | `node --version` |
+| npm | 10+ | `npm --version` |
+| PowerShell | 5.1+ (Windows) or 7+ | `$PSVersionTable.PSVersion` |
+
+## First-Time Clone and Run
+
+Run from PowerShell.
+
+1. Clone repository
+
+```powershell
+git clone <your-repo-url>
+cd pulseops
+```
+
+2. Create local env files from examples
+
+```powershell
+Copy-Item .\agent\.env.example .\agent\.env
+Copy-Item .\backend\.env.example .\backend\.env
+Copy-Item .\frontend\.env.example .\frontend\.env
+```
+
+3. Install dependencies
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\install-deps.ps1
+```
+
+4. Verify baseline startup
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\smoke-check.ps1
+```
+
+5. Start components
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\run-backend.ps1
+```
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\run-agent.ps1
+```
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\run-frontend.ps1
+```
+
+## Phase 1 Quickstart (Local)
+
+Use PowerShell from the repository root.
+
+1. Install dependencies
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\install-deps.ps1
+```
+
+2. Start components (separate terminals)
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\run-backend.ps1
+```
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\run-agent.ps1
+```
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\run-frontend.ps1
+```
+
+Optional: launch all three in new terminals
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\run-all.ps1
+```
+
+3. Run smoke check
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\smoke-check.ps1
+```
+
+Expected smoke check result:
+- agent builds
+- backend builds
+- frontend builds
+- backend `/healthz` returns `{"status":"ok"}`
+
+## Platform Assumptions (Demo)
+
+- Primary demo path is Windows.
+- Scripts in `scripts/` are PowerShell-first for reproducible Windows setup.
+- Linux support can be added later, but Phase 1 acceptance is validated on Windows.
+
+## Troubleshooting (Phase 1)
+
+1. `go` command not found
+- Ensure Go is installed and available in `PATH`.
+
+2. `npm` or `node` command not found
+- Install Node.js LTS and reopen terminal.
+
+3. Frontend port conflict (`5173` already in use)
+- Stop existing process on 5173 or run frontend with a different port.
+
+4. Backend health check fails during smoke-check
+- Confirm no process is already bound to `8080`.
+- Run `powershell -ExecutionPolicy Bypass -File .\scripts\run-backend.ps1` and verify `http://localhost:8080/healthz` returns status `ok`.
+
+5. PowerShell execution policy blocks script execution
+- Run scripts using `-ExecutionPolicy Bypass` as shown above.
+
+6. `.env` values not applied
+- Verify `.env` files exist under `agent/`, `backend/`, and `frontend/`.
+- Confirm variable names match the examples exactly.
+
 ## Overview
 
 An autonomous AI-powered IT operations and incident remediation system built for the Google Cloud Rapid Agent Hackathon.

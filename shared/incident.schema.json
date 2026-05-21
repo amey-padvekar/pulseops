@@ -1,0 +1,139 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pulseops.local/schemas/incident.schema.json",
+  "title": "PulseOps Incident",
+  "description": "Incident state tracked by backend and surfaced to dashboard.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "incidentId",
+    "deviceId",
+    "serviceName",
+    "severity",
+    "state",
+    "detectedAt",
+    "updatedAt",
+    "title"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "type": "string",
+      "const": "1.0.0"
+    },
+    "incidentId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64
+    },
+    "deviceId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "serviceName": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "severity": {
+      "type": "string",
+      "enum": [
+        "low",
+        "medium",
+        "high",
+        "critical"
+      ]
+    },
+    "state": {
+      "type": "string",
+      "enum": [
+        "healthy",
+        "detected",
+        "investigating",
+        "awaiting_approval",
+        "approved",
+        "executing",
+        "validating",
+        "resolved",
+        "failed"
+      ]
+    },
+    "detectedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "updatedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "resolvedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 240
+    },
+    "description": {
+      "type": "string",
+      "maxLength": 4000
+    },
+    "probableCause": {
+      "type": "string",
+      "maxLength": 2000
+    },
+    "confidence": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "recommendedActions": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/recommendedAction"
+      }
+    },
+    "validationSteps": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "maxLength": 500
+      }
+    },
+    "summary": {
+      "type": "string",
+      "maxLength": 5000
+    }
+  },
+  "definitions": {
+    "recommendedAction": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "actionId",
+        "target"
+      ],
+      "properties": {
+        "actionId": {
+          "type": "string",
+          "enum": [
+            "restart_service",
+            "flush_dns",
+            "reconnect_vpn"
+          ]
+        },
+        "target": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "reason": {
+          "type": "string",
+          "maxLength": 1000
+        }
+      }
+    }
+  }
+}

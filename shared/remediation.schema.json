@@ -1,0 +1,85 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pulseops.local/schemas/remediation.schema.json",
+  "title": "PulseOps Remediation Command",
+  "description": "Approved remediation command sent from backend to endpoint agent.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "generatedAt",
+    "incidentId",
+    "deviceId",
+    "actions"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "type": "string",
+      "const": "1.0.0"
+    },
+    "generatedAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Timestamp when backend generated this command payload."
+    },
+    "incidentId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64
+    },
+    "deviceId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "requestedBy": {
+      "type": "string",
+      "maxLength": 128
+    },
+    "approvedBy": {
+      "type": "string",
+      "maxLength": 128
+    },
+    "approvedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "actions": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 10,
+      "items": {
+        "$ref": "#/definitions/action"
+      }
+    }
+  },
+  "definitions": {
+    "action": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "actionId",
+        "target"
+      ],
+      "properties": {
+        "actionId": {
+          "type": "string",
+          "enum": [
+            "restart_service",
+            "flush_dns",
+            "reconnect_vpn"
+          ]
+        },
+        "target": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "reason": {
+          "type": "string",
+          "maxLength": 1000
+        }
+      }
+    }
+  }
+}

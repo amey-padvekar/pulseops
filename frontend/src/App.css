@@ -1,0 +1,96 @@
+.dashboard-shell {
+  min-height: 100vh;
+  padding: 2.5rem 1.25rem 2rem;
+  width: min(1100px, 100%);
+  margin: 0 auto;
+  box-sizing: border-box;
+}
+
+.shell-header {
+  background: linear-gradient(130deg, #0f1726 0%, #1a2e47 48%, #153852 100%);
+  color: #eef4fa;
+  border: 1px solid #264466;
+  border-radius: 16px;
+  padding: 1.2rem 1.2rem 1rem;
+  box-shadow: 0 10px 24px rgba(9, 18, 33, 0.24);
+}
+
+.kicker {
+  margin: 0;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: #9fbedb;
+}
+
+.shell-header h1 {
+  margin: 0.5rem 0;
+  color: #f7fafc;
+  font-size: clamp(1.5rem, 2vw + 1rem, 2.3rem);
+}
+
+.subtitle {
+  margin: 0;
+  color: #c6d9ea;
+}
+
+.api-hint {
+  margin: 0.85rem 0 0;
+  color: #d7e6f3;
+  font-size: 0.95rem;
+}
+
+.card-grid {
+  margin-top: 1rem;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.9rem;
+}
+
+.status-card {
+  background: #fff;
+  border: 1px solid #d4dde7;
+  border-radius: 14px;
+  padding: 1rem;
+  box-shadow: 0 6px 18px rgba(17, 39, 67, 0.08);
+}
+
+.card-chip {
+  display: inline-block;
+  border-radius: 999px;
+  border: 1px solid #8fa7c2;
+  color: #24496f;
+  background: #edf5ff;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 0.7rem;
+  padding: 0.22rem 0.55rem;
+}
+
+.status-card h2 {
+  margin: 0.7rem 0 0.45rem;
+  color: #12304d;
+  font-size: 1.1rem;
+}
+
+.status-card p {
+  margin: 0;
+  color: #3e5873;
+}
+
+.api-hint code {
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+  border-radius: 8px;
+  padding: 0.15rem 0.4rem;
+}
+
+@media (max-width: 760px) {
+  .dashboard-shell {
+    padding: 1rem 0.75rem;
+  }
+
+  .card-grid {
+    grid-template-columns: 1fr;
+  }
+}
