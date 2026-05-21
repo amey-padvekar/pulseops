@@ -174,6 +174,8 @@ Use interfaces so the agent can later support both Windows and Linux:
 - Go agent that sends telemetry every 5–10 seconds
 - telemetry visible in backend logs
 
+Detailed Phase 2 source of truth: `./PHASE_2_DETAILED_PLAN.md`
+
 ---
 
 # Phase 3 — Backend telemetry ingestion and live device state

@@ -60,3 +60,34 @@ Use pre-validated alternate monitored process/service listed in environment note
 - If endpoint heartbeat drops entirely, restart from healthy baseline.
 - If approval action is not visible, do not execute direct remediation.
 - If recovery telemetry does not confirm health within defined window, call out validation failure handling and stop.
+
+## Phase 2 Smoke and Failure Drill (4.7)
+
+Use this before recording or rehearsal to prove heartbeat and failure observability.
+
+1. Run smoke-check from repository root:
+- `powershell -ExecutionPolicy Bypass -File .\scripts\smoke-check.ps1`
+
+Expected result:
+- backend `/healthz` is healthy
+- backend logs include `telemetry received`
+- evidence logs are written under `artifacts\phase2-smoke\<timestamp>\`
+
+2. Start backend and agent in separate terminals:
+- `powershell -ExecutionPolicy Bypass -File .\scripts\run-backend.ps1`
+- `powershell -ExecutionPolicy Bypass -File .\scripts\run-agent.ps1`
+
+3. Trigger a deterministic service-stop failure (Windows demo path):
+- Determine service from `MONITORED_SERVICE_NAME` in `agent\.env`.
+- Stop it manually as administrator:
+	- `Stop-Service -Name <MONITORED_SERVICE_NAME> -Force`
+	- fallback command: `sc.exe stop <MONITORED_SERVICE_NAME>`
+
+4. Verify expected behavior:
+- agent process remains running
+- backend continues receiving heartbeat telemetry
+- service status transitions away from `running` (typically `stopped` or `unknown` depending on host permissions/service type)
+
+5. Capture rehearsal evidence:
+- screenshot or clip showing agent terminal still alive after service stop
+- snippet from backend logs showing continuing `telemetry received` entries after service stop

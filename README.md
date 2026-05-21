@@ -98,6 +98,33 @@ Expected smoke check result:
 - backend builds
 - frontend builds
 - backend `/healthz` returns `{"status":"ok"}`
+- agent emits telemetry and backend logs include `telemetry received`
+- evidence logs are saved to `artifacts\\phase2-smoke\\<timestamp>\\`
+
+## Phase 2 Failure Rehearsal
+
+Run this after smoke-check to verify the demo failure trigger path.
+
+1. Start backend and agent in separate terminals:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\run-backend.ps1
+```
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\run-agent.ps1
+```
+
+2. Stop the monitored service manually (administrator shell):
+
+```powershell
+Stop-Service -Name <MONITORED_SERVICE_NAME> -Force
+```
+
+3. Confirm:
+- agent process remains running
+- backend continues logging telemetry
+- service status in telemetry reflects the stop/failure condition
 
 ## Platform Assumptions (Demo)
 
