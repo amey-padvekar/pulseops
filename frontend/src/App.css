@@ -40,6 +40,22 @@
   font-size: 0.95rem;
 }
 
+.connection-state {
+  margin: 0.6rem 0 0;
+  color: #d7e6f3;
+  font-size: 0.9rem;
+}
+
+.conn-connected {
+  color: #9ce7bf;
+  font-weight: 600;
+}
+
+.conn-reconnecting {
+  color: #ffd2a0;
+  font-weight: 600;
+}
+
 .card-grid {
   margin-top: 1rem;
   display: grid;
@@ -53,6 +69,22 @@
   border-radius: 14px;
   padding: 1rem;
   box-shadow: 0 6px 18px rgba(17, 39, 67, 0.08);
+}
+
+.status-card.status-running {
+  border-left: 4px solid #22c55e;
+}
+
+.status-card.status-stopped {
+  border-left: 4px solid #ef4444;
+}
+
+.status-card.status-degraded {
+  border-left: 4px solid #f97316;
+}
+
+.status-card.status-unknown {
+  border-left: 4px solid #6b7280;
 }
 
 .card-chip {
@@ -78,6 +110,97 @@
   color: #3e5873;
 }
 
+.badge-running {
+  background: #dcfce7;
+  color: #15803d;
+  border-color: #86efac;
+}
+
+.badge-stopped {
+  background: #fee2e2;
+  color: #b91c1c;
+  border-color: #fca5a5;
+}
+
+.badge-degraded {
+  background: #ffedd5;
+  color: #c2410c;
+  border-color: #fdba74;
+}
+
+.badge-unknown,
+.badge-placeholder {
+  background: #f3f4f6;
+  color: #374151;
+  border-color: #d1d5db;
+}
+
+.device-metrics {
+  margin-top: 0.75rem;
+  border-top: 1px solid #e5edf5;
+  padding-top: 0.75rem;
+}
+
+.metrics-grid {
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.7rem;
+}
+
+.metrics-grid dt {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #5f7893;
+}
+
+.metrics-grid dd {
+  margin: 0.2rem 0 0;
+  color: #173654;
+  font-weight: 600;
+}
+
+.metric-bar {
+  margin-top: 0.3rem;
+  background: #eaf0f7;
+  border-radius: 999px;
+  height: 6px;
+  overflow: hidden;
+}
+
+.metric-bar span {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, #2f8fdd 0%, #2bc59a 100%);
+}
+
+.recent-logs {
+  margin-top: 0.8rem;
+}
+
+.recent-logs h3 {
+  margin: 0 0 0.35rem;
+  font-size: 0.85rem;
+  color: #234564;
+}
+
+.recent-logs ul {
+  margin: 0;
+  padding-left: 1rem;
+  color: #3b556f;
+}
+
+.recent-logs li {
+  font-size: 0.87rem;
+  margin-bottom: 0.15rem;
+}
+
+.empty-log {
+  font-size: 0.87rem;
+  color: #5f7893;
+}
+
 .api-hint code {
   background: rgba(255, 255, 255, 0.12);
   color: #fff;
@@ -91,6 +214,10 @@
   }
 
   .card-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .metrics-grid {
     grid-template-columns: 1fr;
   }
 }

@@ -8,6 +8,10 @@ import (
 	"net/http"
 	"os"
 	"strings"
+
+	"github.com/certainelf/pulseops/backend/internal/api"
+	"github.com/certainelf/pulseops/backend/internal/store"
+	"github.com/certainelf/pulseops/backend/internal/ws"
 )
 
 type Config struct {
@@ -47,65 +51,88 @@ func healthzHandler(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-func telemetryHandler(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		w.WriteHeader(http.StatusMethodNotAllowed)
-		return
+func makeTelemetryHandler(s *store.DeviceStore, hub *ws.Hub) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			return
+		}
+
+		defer r.Body.Close()
+
+		body, err := io.ReadAll(io.LimitReader(r.Body, 1<<20))
+		if err != nil {
+			http.Error(w, "failed to read telemetry body", http.StatusBadRequest)
+			return
+		}
+
+		var payload TelemetryPayload
+		if err := json.Unmarshal(body, &payload); err != nil {
+			http.Error(w, "invalid telemetry payload", http.StatusBadRequest)
+			return
+		}
+
+		if err := validateTelemetryPayload(payload); err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		s.Upsert(store.DeviceState{
+			DeviceID:         payload.DeviceID,
+			Timestamp:        payload.Timestamp,
+			ServiceName:      payload.ServiceName,
+			ServiceStatus:    payload.ServiceStatus,
+			NetworkReachable: payload.NetworkReachable,
+			CPUUsage:         payload.CPUUsage,
+			MemoryUsage:      payload.MemoryUsage,
+			RecentLogs:       payload.RecentLogs,
+			Heartbeat:        payload.Heartbeat,
+		})
+
+		if hub != nil {
+			state, ok := s.Get(payload.DeviceID)
+			if ok {
+				if stateJSON, err := json.Marshal(state); err == nil {
+					hub.Broadcast(stateJSON)
+				}
+			}
+		}
+
+		requestID := strings.TrimSpace(r.Header.Get("X-PulseOps-Request-ID"))
+		if requestID == "" {
+			requestID = "missing"
+		}
+
+		requestAttempt := strings.TrimSpace(r.Header.Get("X-PulseOps-Request-Attempt"))
+		if requestAttempt == "" {
+			requestAttempt = "1"
+		}
+
+		deviceHeader := strings.TrimSpace(r.Header.Get("X-PulseOps-Device-ID"))
+
+		log.Printf(
+			"telemetry received request_id=%s request_attempt=%s device_id=%s device_header=%s timestamp=%s service=%s service_status=%s heartbeat=%t network_reachable=%t cpu_usage=%.2f memory_usage=%.2f logs=%d state_updated=true",
+			requestID,
+			requestAttempt,
+			payload.DeviceID,
+			deviceHeader,
+			payload.Timestamp,
+			payload.ServiceName,
+			payload.ServiceStatus,
+			payload.Heartbeat,
+			payload.NetworkReachable,
+			payload.CPUUsage,
+			payload.MemoryUsage,
+			len(payload.RecentLogs),
+		)
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusAccepted)
+		_ = json.NewEncoder(w).Encode(map[string]string{
+			"status":    "accepted",
+			"requestId": requestID,
+		})
 	}
-
-	defer r.Body.Close()
-
-	body, err := io.ReadAll(io.LimitReader(r.Body, 1<<20))
-	if err != nil {
-		http.Error(w, "failed to read telemetry body", http.StatusBadRequest)
-		return
-	}
-
-	var payload TelemetryPayload
-	if err := json.Unmarshal(body, &payload); err != nil {
-		http.Error(w, "invalid telemetry payload", http.StatusBadRequest)
-		return
-	}
-
-	if err := validateTelemetryPayload(payload); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-
-	requestID := strings.TrimSpace(r.Header.Get("X-PulseOps-Request-ID"))
-	if requestID == "" {
-		requestID = "missing"
-	}
-
-	requestAttempt := strings.TrimSpace(r.Header.Get("X-PulseOps-Request-Attempt"))
-	if requestAttempt == "" {
-		requestAttempt = "1"
-	}
-
-	deviceHeader := strings.TrimSpace(r.Header.Get("X-PulseOps-Device-ID"))
-
-	log.Printf(
-		"telemetry received request_id=%s request_attempt=%s device_id=%s device_header=%s timestamp=%s service=%s service_status=%s heartbeat=%t network_reachable=%t cpu_usage=%.2f memory_usage=%.2f logs=%d",
-		requestID,
-		requestAttempt,
-		payload.DeviceID,
-		deviceHeader,
-		payload.Timestamp,
-		payload.ServiceName,
-		payload.ServiceStatus,
-		payload.Heartbeat,
-		payload.NetworkReachable,
-		payload.CPUUsage,
-		payload.MemoryUsage,
-		len(payload.RecentLogs),
-	)
-
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusAccepted)
-	_ = json.NewEncoder(w).Encode(map[string]string{
-		"status":    "accepted",
-		"requestId": requestID,
-	})
 }
 
 func validateTelemetryPayload(payload TelemetryPayload) error {
@@ -133,13 +160,23 @@ func validateTelemetryPayload(payload TelemetryPayload) error {
 func main() {
 	cfg := loadConfig()
 
+	deviceStore := store.NewDeviceStore()
+	hub := ws.NewHub()
+	go hub.Run()
+
 	mux := http.NewServeMux()
 	mux.HandleFunc("/healthz", healthzHandler)
-	mux.HandleFunc("/telemetry", telemetryHandler)
+	mux.HandleFunc("/telemetry", makeTelemetryHandler(deviceStore, hub))
+	mux.HandleFunc("/devices", api.DevicesHandler(deviceStore))
+	mux.HandleFunc("/devices/", api.DeviceByIDHandler(deviceStore))
+	mux.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
+		ws.ServeWs(hub, w, r)
+	})
+	handler := api.CORSMiddleware(mux)
 
 	addr := ":" + cfg.Port
 	log.Printf("backend starting on %s", addr)
-	if err := http.ListenAndServe(addr, mux); err != nil {
+	if err := http.ListenAndServe(addr, handler); err != nil {
 		fmt.Fprintf(os.Stderr, "backend server error: %v\n", err)
 		os.Exit(1)
 	}

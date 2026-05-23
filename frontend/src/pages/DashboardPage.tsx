@@ -1,16 +1,12 @@
 import { StatusCard } from '../components/StatusCard'
+import { useDeviceState } from '../hooks/useDeviceState'
 import type { DashboardCard } from '../types/dashboard'
 
 type DashboardPageProps = {
   apiBaseUrl: string
 }
 
-const cards: DashboardCard[] = [
-  {
-    title: 'Endpoint Health',
-    status: 'placeholder',
-    description: 'Live endpoint heartbeat and service status will render here in Phase 3.',
-  },
+const placeholderCards: DashboardCard[] = [
   {
     title: 'Incident Timeline',
     status: 'placeholder',
@@ -28,7 +24,34 @@ const cards: DashboardCard[] = [
   },
 ]
 
+function endpointCardStatus(serviceStatus: string | undefined): DashboardCard['status'] {
+  if (serviceStatus === 'running') {
+    return 'healthy'
+  }
+  if (serviceStatus === 'stopped') {
+    return 'stopped'
+  }
+  if (serviceStatus === 'degraded') {
+    return 'degraded'
+  }
+  if (serviceStatus === 'unknown') {
+    return 'unknown'
+  }
+  return 'placeholder'
+}
+
 export function DashboardPage({ apiBaseUrl }: DashboardPageProps) {
+  const agentDeviceId = import.meta.env.VITE_AGENT_DEVICE_ID || 'LAPTOP-22'
+  const { deviceState, connected } = useDeviceState(agentDeviceId)
+
+  const endpointCard: DashboardCard = {
+    title: 'Endpoint Health',
+    status: endpointCardStatus(deviceState?.serviceStatus),
+    description: deviceState
+      ? `Live status for ${deviceState.deviceId}.`
+      : 'Waiting for device telemetry...',
+  }
+
   return (
     <main className="dashboard-shell">
       <header className="shell-header">
@@ -40,10 +63,17 @@ export function DashboardPage({ apiBaseUrl }: DashboardPageProps) {
         <p className="api-hint">
           API base URL: <code>{apiBaseUrl}</code>
         </p>
+        <p className="connection-state">
+          Connection:
+          <span className={connected ? 'conn-connected' : 'conn-reconnecting'}>
+            {connected ? ' connected' : ' reconnecting'}
+          </span>
+        </p>
       </header>
 
       <section className="card-grid">
-        {cards.map((card) => (
+        <StatusCard card={endpointCard} deviceState={deviceState ?? undefined} />
+        {placeholderCards.map((card) => (
           <StatusCard key={card.title} card={card} />
         ))}
       </section>
