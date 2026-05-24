@@ -91,3 +91,26 @@ Expected result:
 5. Capture rehearsal evidence:
 - screenshot or clip showing agent terminal still alive after service stop
 - snippet from backend logs showing continuing `telemetry received` entries after service stop
+
+## Phase 4 Incident Smoke Path
+
+Use this to generate deterministic incident lifecycle evidence before demo day.
+
+1. Run Phase 4 smoke-check from repository root:
+- `powershell -ExecutionPolicy Bypass -File .\scripts\smoke-check.ps1 -Phase phase4`
+
+Optional fast local run (skip builds + no frontend process):
+- `powershell -ExecutionPolicy Bypass -File .\scripts\smoke-check.ps1 -Phase phase4 -SkipBuild -NoFrontend`
+
+Expected result:
+- `POST /telemetry` synthetic stopped-service heartbeats are accepted
+- `GET /incidents?active=true` returns exactly one active incident
+- incident state reaches `investigating`
+- repeated failing heartbeat reuses the same active incident (no duplicate)
+- evidence is written under `artifacts\phase4-smoke\<timestamp>\` including:
+	- `baseline_incidents.json`
+	- `incidents_after_first_failure.json`
+	- `incidents_after_second_failure.json`
+	- `incident_detail.json`
+	- `incidents_snapshot.json`
+	- backend/agent (and optional frontend) logs

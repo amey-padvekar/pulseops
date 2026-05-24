@@ -8,8 +8,10 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/certainelf/pulseops/backend/internal/api"
+	"github.com/certainelf/pulseops/backend/internal/incidents"
 	"github.com/certainelf/pulseops/backend/internal/store"
 	"github.com/certainelf/pulseops/backend/internal/ws"
 )
@@ -51,7 +53,7 @@ func healthzHandler(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-func makeTelemetryHandler(s *store.DeviceStore, hub *ws.Hub) http.HandlerFunc {
+func makeTelemetryHandler(deviceStore *store.DeviceStore, incidentStore *incidents.Store, hub *ws.Hub) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			w.WriteHeader(http.StatusMethodNotAllowed)
@@ -77,7 +79,7 @@ func makeTelemetryHandler(s *store.DeviceStore, hub *ws.Hub) http.HandlerFunc {
 			return
 		}
 
-		s.Upsert(store.DeviceState{
+		deviceStore.Upsert(store.DeviceState{
 			DeviceID:         payload.DeviceID,
 			Timestamp:        payload.Timestamp,
 			ServiceName:      payload.ServiceName,
@@ -89,13 +91,14 @@ func makeTelemetryHandler(s *store.DeviceStore, hub *ws.Hub) http.HandlerFunc {
 			Heartbeat:        payload.Heartbeat,
 		})
 
-		if hub != nil {
-			state, ok := s.Get(payload.DeviceID)
-			if ok {
-				if stateJSON, err := json.Marshal(state); err == nil {
-					hub.Broadcast(stateJSON)
+		state, ok := deviceStore.Get(payload.DeviceID)
+		if ok {
+			if incidentStore != nil {
+				if incident, shouldBroadcast := processTelemetryIncident(incidentStore, state); shouldBroadcast {
+					ws.BroadcastIncidentUpdated(hub, incident)
 				}
 			}
+			ws.BroadcastTelemetryUpdated(hub, state)
 		}
 
 		requestID := strings.TrimSpace(r.Header.Get("X-PulseOps-Request-ID"))
@@ -135,6 +138,42 @@ func makeTelemetryHandler(s *store.DeviceStore, hub *ws.Hub) http.HandlerFunc {
 	}
 }
 
+func processTelemetryIncident(incidentStore *incidents.Store, state store.DeviceState) (incidents.Incident, bool) {
+	detection := incidents.EvaluateTelemetry(state)
+	if !detection.ShouldCreateOrUpdate {
+		return incidents.Incident{}, false
+	}
+
+	seed := incidents.NewIncident(
+		"",
+		state.DeviceID,
+		state.ServiceName,
+		state.ServiceStatus,
+		detection.Severity,
+		detection.Reason,
+	)
+
+	incident, created := incidentStore.CreateOrGetActive(detection.DedupeKey, seed)
+	if created {
+		next, err := incidentStore.UpdateState(incident.IncidentID, incidents.StateInvestigating, detection.Reason)
+		if err == nil {
+			incident = next
+		}
+		return incident, true
+	}
+
+	seenAt := state.LastSeenAt
+	if seenAt.IsZero() {
+		seenAt = time.Now().UTC()
+	}
+	touched, err := incidentStore.Touch(incident.IncidentID, seenAt)
+	if err == nil {
+		incident = touched
+	}
+
+	return incident, true
+}
+
 func validateTelemetryPayload(payload TelemetryPayload) error {
 	if strings.TrimSpace(payload.SchemaVersion) == "" {
 		return fmt.Errorf("schemaVersion is required")
@@ -161,14 +200,17 @@ func main() {
 	cfg := loadConfig()
 
 	deviceStore := store.NewDeviceStore()
+	incidentStore := incidents.NewStore()
 	hub := ws.NewHub()
 	go hub.Run()
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/healthz", healthzHandler)
-	mux.HandleFunc("/telemetry", makeTelemetryHandler(deviceStore, hub))
+	mux.HandleFunc("/telemetry", makeTelemetryHandler(deviceStore, incidentStore, hub))
 	mux.HandleFunc("/devices", api.DevicesHandler(deviceStore))
 	mux.HandleFunc("/devices/", api.DeviceByIDHandler(deviceStore))
+	mux.HandleFunc("/incidents", api.IncidentsHandler(incidentStore))
+	mux.HandleFunc("/incidents/", api.IncidentByIDHandler(incidentStore))
 	mux.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
 		ws.ServeWs(hub, w, r)
 	})

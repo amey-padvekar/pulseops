@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 
 import { useApiBaseUrl, useWsBaseUrl } from './useApiBaseUrl'
-import type { DeviceState } from '../types/dashboard'
+import type { DeviceState, WsEventEnvelope } from '../types/dashboard'
 
 type UseDeviceStateResult = {
   deviceState: DeviceState | null
@@ -94,7 +94,19 @@ export function useDeviceState(deviceId: string): UseDeviceStateResult {
           return
         }
 
-        const maybeState = parsed as Partial<DeviceState>
+        let maybeState: Partial<DeviceState> | null = null
+
+        const envelope = parsed as Partial<WsEventEnvelope<unknown>>
+        if (
+          envelope.type === 'telemetry.updated' &&
+          envelope.payload &&
+          typeof envelope.payload === 'object'
+        ) {
+          maybeState = envelope.payload as Partial<DeviceState>
+        } else {
+          maybeState = parsed as Partial<DeviceState>
+        }
+
         if (maybeState.deviceId === deviceId) {
           setDeviceState(maybeState as DeviceState)
         }

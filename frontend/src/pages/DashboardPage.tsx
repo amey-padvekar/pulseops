@@ -1,5 +1,6 @@
 import { StatusCard } from '../components/StatusCard'
 import { useDeviceState } from '../hooks/useDeviceState'
+import { useIncidents } from '../hooks/useIncidents'
 import type { DashboardCard } from '../types/dashboard'
 
 type DashboardPageProps = {
@@ -7,11 +8,6 @@ type DashboardPageProps = {
 }
 
 const placeholderCards: DashboardCard[] = [
-  {
-    title: 'Incident Timeline',
-    status: 'placeholder',
-    description: 'Incident lifecycle events and transitions will be listed here in Phase 4.',
-  },
   {
     title: 'AI Investigation',
     status: 'placeholder',
@@ -43,6 +39,7 @@ function endpointCardStatus(serviceStatus: string | undefined): DashboardCard['s
 export function DashboardPage({ apiBaseUrl }: DashboardPageProps) {
   const agentDeviceId = import.meta.env.VITE_AGENT_DEVICE_ID || 'LAPTOP-22'
   const { deviceState, connected } = useDeviceState(agentDeviceId)
+  const { activeIncident, connected: incidentConnected } = useIncidents(agentDeviceId)
 
   const endpointCard: DashboardCard = {
     title: 'Endpoint Health',
@@ -73,6 +70,43 @@ export function DashboardPage({ apiBaseUrl }: DashboardPageProps) {
 
       <section className="card-grid">
         <StatusCard card={endpointCard} deviceState={deviceState ?? undefined} />
+
+        <article
+          className={`status-card incident-panel ${activeIncident ? 'incident-active' : 'incident-idle'}`}
+          aria-label="Incident Timeline"
+        >
+          <div className={`card-chip ${activeIncident ? 'badge-stopped' : 'badge-placeholder'}`}>
+            {activeIncident ? 'active incident' : 'no active incident'}
+          </div>
+          <h2>Incident Timeline</h2>
+          <p>
+            {activeIncident
+              ? 'Real-time incident state from backend detection.'
+              : 'No active incident for this endpoint right now.'}
+          </p>
+
+          <div className="incident-details">
+            <dl className="metrics-grid">
+              <div>
+                <dt>Incident ID</dt>
+                <dd>{activeIncident?.incidentId ?? 'N/A'}</dd>
+              </div>
+              <div>
+                <dt>State</dt>
+                <dd>{activeIncident?.state ?? 'healthy'}</dd>
+              </div>
+              <div>
+                <dt>Severity</dt>
+                <dd>{activeIncident?.severity ?? 'low'}</dd>
+              </div>
+              <div>
+                <dt>Incident WS</dt>
+                <dd>{incidentConnected ? 'connected' : 'reconnecting'}</dd>
+              </div>
+            </dl>
+          </div>
+        </article>
+
         {placeholderCards.map((card) => (
           <StatusCard key={card.title} card={card} />
         ))}

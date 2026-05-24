@@ -20,3 +20,36 @@ export type DashboardCard = {
   status: CardStatus
   description: string
 }
+
+export type IncidentState =
+  | 'healthy'
+  | 'detected'
+  | 'investigating'
+  | 'awaiting_approval'
+  | 'approved'
+  | 'executing'
+  | 'validating'
+  | 'resolved'
+  | 'failed'
+
+export type Severity = 'low' | 'medium' | 'high' | 'critical'
+
+export type Incident = {
+  incidentId: string
+  deviceId: string
+  serviceName: string
+  serviceStatus: ServiceStatus
+  state: IncidentState
+  severity: Severity
+  createdAt: string
+  updatedAt: string
+  detectedAt: string
+  lastSeenAt: string
+  reason: string
+  active: boolean
+}
+
+export type WsEventEnvelope<TPayload> = {
+  type: string
+  payload: TPayload
+}

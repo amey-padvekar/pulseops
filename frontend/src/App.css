@@ -87,6 +87,27 @@
   border-left: 4px solid #6b7280;
 }
 
+.incident-panel {
+  transition: border-color 160ms ease, box-shadow 160ms ease, background-color 160ms ease;
+}
+
+.incident-panel.incident-idle {
+  border-left: 4px solid #9ca3af;
+}
+
+.incident-panel.incident-active {
+  border-left: 4px solid #dc2626;
+  border-color: #fecaca;
+  background: linear-gradient(180deg, #fff8f8 0%, #fff 100%);
+  box-shadow: 0 10px 22px rgba(185, 28, 28, 0.14);
+}
+
+.incident-details {
+  margin-top: 0.75rem;
+  border-top: 1px solid #e5edf5;
+  padding-top: 0.75rem;
+}
+
 .card-chip {
   display: inline-block;
   border-radius: 999px;
