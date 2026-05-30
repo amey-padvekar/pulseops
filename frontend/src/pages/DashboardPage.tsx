@@ -1,4 +1,7 @@
+import { useEffect, useMemo, useState } from 'react'
+
 import { StatusCard } from '../components/StatusCard'
+import { useAgentStats } from '../hooks/useAgentStats'
 import { useDeviceState } from '../hooks/useDeviceState'
 import { useIncidents } from '../hooks/useIncidents'
 import type { DashboardCard } from '../types/dashboard'
@@ -37,9 +40,31 @@ function endpointCardStatus(serviceStatus: string | undefined): DashboardCard['s
 }
 
 export function DashboardPage({ apiBaseUrl }: DashboardPageProps) {
-  const agentDeviceId = import.meta.env.VITE_AGENT_DEVICE_ID || 'LAPTOP-22'
-  const { deviceState, connected } = useDeviceState(agentDeviceId)
-  const { activeIncident, connected: incidentConnected } = useIncidents(agentDeviceId)
+  const defaultAgentDeviceId = import.meta.env.VITE_AGENT_DEVICE_ID || 'DEV-AGENT-01'
+  const { activeAgents, activeAgentDevices } = useAgentStats()
+  const [selectedDeviceId, setSelectedDeviceId] = useState(defaultAgentDeviceId)
+
+  const selectableDevices = useMemo(() => {
+    const unique = new Set<string>()
+    unique.add(defaultAgentDeviceId)
+    for (const deviceId of activeAgentDevices) {
+      unique.add(deviceId)
+    }
+    return Array.from(unique)
+  }, [activeAgentDevices, defaultAgentDeviceId])
+
+  useEffect(() => {
+    if (selectableDevices.length === 0) {
+      return
+    }
+
+    if (!selectableDevices.includes(selectedDeviceId)) {
+      setSelectedDeviceId(selectableDevices[0])
+    }
+  }, [selectableDevices, selectedDeviceId])
+
+  const { deviceState, connected } = useDeviceState(selectedDeviceId)
+  const { activeIncident, connected: incidentConnected } = useIncidents(selectedDeviceId)
 
   const endpointCard: DashboardCard = {
     title: 'Endpoint Health',
@@ -47,6 +72,15 @@ export function DashboardPage({ apiBaseUrl }: DashboardPageProps) {
     description: deviceState
       ? `Live status for ${deviceState.deviceId}.`
       : 'Waiting for device telemetry...',
+  }
+
+  const activeAgentsCard: DashboardCard = {
+    title: 'Active Agents',
+    status: activeAgents > 0 ? 'healthy' : 'unknown',
+    description:
+      activeAgents === 1
+        ? '1 agent currently tracked by the backend.'
+        : `${activeAgents} agents currently tracked by the backend.`,
   }
 
   return (
@@ -69,6 +103,49 @@ export function DashboardPage({ apiBaseUrl }: DashboardPageProps) {
       </header>
 
       <section className="card-grid">
+        <article className={`status-card ${activeAgents > 0 ? 'status-running' : 'status-unknown'}`}>
+          <div className={`card-chip ${activeAgents > 0 ? 'badge-running' : 'badge-unknown'}`}>
+            {activeAgents > 0 ? 'active agents' : 'no agents'}
+          </div>
+          <h2>{activeAgentsCard.title}</h2>
+          <p>{activeAgentsCard.description}</p>
+
+          <div className="agent-list-wrap">
+            <label htmlFor="active-agent-select">Selected Agent Device</label>
+            <select
+              id="active-agent-select"
+              className="agent-select"
+              value={selectedDeviceId}
+              onChange={(event) => setSelectedDeviceId(event.target.value)}
+            >
+              {selectableDevices.map((deviceId) => (
+                <option key={deviceId} value={deviceId}>
+                  {deviceId}
+                </option>
+              ))}
+            </select>
+
+            <h3>Tracked Devices</h3>
+            {activeAgentDevices.length === 0 ? (
+              <p className="empty-log">No active agents reported yet.</p>
+            ) : (
+              <ul className="agent-list">
+                {activeAgentDevices.map((deviceId) => (
+                  <li key={deviceId}>
+                    <button
+                      type="button"
+                      className={`agent-pill ${selectedDeviceId === deviceId ? 'agent-pill-active' : ''}`}
+                      onClick={() => setSelectedDeviceId(deviceId)}
+                    >
+                      {deviceId}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </article>
+
         <StatusCard card={endpointCard} deviceState={deviceState ?? undefined} />
 
         <article

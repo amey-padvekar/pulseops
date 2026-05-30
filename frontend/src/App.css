@@ -222,6 +222,62 @@
   color: #5f7893;
 }
 
+.agent-list-wrap {
+  margin-top: 0.75rem;
+  border-top: 1px solid #e5edf5;
+  padding-top: 0.75rem;
+}
+
+.agent-list-wrap label {
+  display: block;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #5f7893;
+  margin-bottom: 0.35rem;
+}
+
+.agent-select {
+  width: 100%;
+  border: 1px solid #cad8e6;
+  border-radius: 10px;
+  padding: 0.45rem 0.6rem;
+  color: #173654;
+  background: #fbfdff;
+}
+
+.agent-list-wrap h3 {
+  margin: 0.75rem 0 0.35rem;
+  font-size: 0.85rem;
+  color: #234564;
+}
+
+.agent-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.agent-pill {
+  border: 1px solid #c3d4e5;
+  background: #f4f9ff;
+  color: #1b466f;
+  border-radius: 999px;
+  padding: 0.25rem 0.6rem;
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+
+.agent-pill-active {
+  background: #dbeeff;
+  border-color: #6aa4d8;
+  color: #0f3a5e;
+  font-weight: 600;
+}
+
 .api-hint code {
   background: rgba(255, 255, 255, 0.12);
   color: #fff;

@@ -13,6 +13,9 @@ Thumbs.db
 *.log
 logs/
 
+#artifacts
+artifacts/
+
 # Go
 **/bin/
 **/dist/

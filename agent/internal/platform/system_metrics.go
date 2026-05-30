@@ -2,6 +2,7 @@ package platform
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"runtime"
 	"strconv"
@@ -26,13 +27,13 @@ func (c *WindowsSystemMetricsCollector) Collect(ctx context.Context) (SystemMetr
 		"-NoProfile",
 		"-NonInteractive",
 		"-Command",
-		`$os=Get-CimInstance Win32_OperatingSystem; $cpu=(Get-CimInstance Win32_Processor | Measure-Object -Property LoadPercentage -Average).Average; if (-not $cpu) { $cpu=0 }; $used=((([double]$os.TotalVisibleMemorySize - [double]$os.FreePhysicalMemory) / [double]$os.TotalVisibleMemorySize) * 100); if ($used -lt 0) { $used=0 }; if ($used -gt 100) { $used=100 }; Write-Output (([math]::Round([double]$cpu,2)).ToString() + ',' + ([math]::Round([double]$used,2)).ToString())`,
+		`$os=Get-CimInstance Win32_OperatingSystem; $cpu=(Get-CimInstance Win32_Processor | Measure-Object -Property LoadPercentage -Average).Average; if (-not $cpu) { $cpu=0 }; $used=((([double]$os.TotalVisibleMemorySize - [double]$os.FreePhysicalMemory) / [double]$os.TotalVisibleMemorySize) * 100); if ($used -lt 0) { $used=0 }; if ($used -gt 100) { $used=100 }; $result=@{cpu=[math]::Round([double]$cpu,2); memory=[math]::Round([double]$used,2)}; $result | ConvertTo-Json -Compress`,
 	)
 	if err != nil {
 		return SystemMetrics{}, fmt.Errorf("collect windows system metrics: %w", err)
 	}
 
-	metrics, parseErr := parseWindowsMetrics(output)
+	metrics, parseErr := parseWindowsMetricsOutput(output)
 	if parseErr != nil {
 		return SystemMetrics{}, parseErr
 	}
@@ -46,22 +47,53 @@ func (c *UnsupportedSystemMetricsCollector) Collect(context.Context) (SystemMetr
 	return SystemMetrics{CPUUsage: 0, MemoryUsage: 0}, nil
 }
 
+type windowsMetricsPayload struct {
+	CPU    float64 `json:"cpu"`
+	Memory float64 `json:"memory"`
+}
+
+func parseWindowsMetricsOutput(output string) (SystemMetrics, error) {
+	line := strings.TrimSpace(output)
+	if line == "" {
+		return SystemMetrics{}, fmt.Errorf("metrics output is empty")
+	}
+
+	if strings.HasPrefix(line, "{") {
+		var payload windowsMetricsPayload
+		if err := json.Unmarshal([]byte(line), &payload); err != nil {
+			return SystemMetrics{}, fmt.Errorf("parse metrics json: %w", err)
+		}
+		return SystemMetrics{
+			CPUUsage:    clampPercent(payload.CPU),
+			MemoryUsage: clampPercent(payload.Memory),
+		}, nil
+	}
+
+	// Backward compatibility for prior csv-style output.
+	return parseWindowsMetrics(line)
+}
+
 func parseWindowsMetrics(output string) (SystemMetrics, error) {
 	line := strings.TrimSpace(output)
 	if line == "" {
 		return SystemMetrics{}, fmt.Errorf("metrics output is empty")
 	}
 
-	parts := strings.Split(line, ",")
+	delimiter := ","
+	if strings.Contains(line, ";") {
+		delimiter = ";"
+	}
+
+	parts := strings.Split(line, delimiter)
 	if len(parts) != 2 {
 		return SystemMetrics{}, fmt.Errorf("metrics output must be cpu,memory but was %q", line)
 	}
 
-	cpu, err := strconv.ParseFloat(strings.TrimSpace(parts[0]), 64)
+	cpu, err := parsePercent(parts[0])
 	if err != nil {
 		return SystemMetrics{}, fmt.Errorf("parse cpu usage: %w", err)
 	}
-	memory, err := strconv.ParseFloat(strings.TrimSpace(parts[1]), 64)
+	memory, err := parsePercent(parts[1])
 	if err != nil {
 		return SystemMetrics{}, fmt.Errorf("parse memory usage: %w", err)
 	}
@@ -70,6 +102,14 @@ func parseWindowsMetrics(output string) (SystemMetrics, error) {
 		CPUUsage:    clampPercent(cpu),
 		MemoryUsage: clampPercent(memory),
 	}, nil
+}
+
+func parsePercent(raw string) (float64, error) {
+	value := strings.TrimSpace(raw)
+	if strings.Contains(value, ",") && !strings.Contains(value, ".") {
+		value = strings.ReplaceAll(value, ",", ".")
+	}
+	return strconv.ParseFloat(value, 64)
 }
 
 func clampPercent(value float64) float64 {

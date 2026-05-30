@@ -8,17 +8,26 @@ import (
 	"testing"
 	"time"
 
+	"github.com/certainelf/pulseops/backend/internal/agentbuilder"
 	"github.com/certainelf/pulseops/backend/internal/api"
+	"github.com/certainelf/pulseops/backend/internal/elastic"
 	"github.com/certainelf/pulseops/backend/internal/incidents"
 	"github.com/certainelf/pulseops/backend/internal/store"
 	"github.com/certainelf/pulseops/backend/internal/ws"
 )
 
+func newTestTelemetryHandler(deviceStore *store.DeviceStore, incidentStore *incidents.Store) http.HandlerFunc {
+	var elasticCfg *elastic.Config
+	var agentClient agentbuilder.Client
+	var agentCfg *agentbuilder.Config
+	return makeTelemetryHandler(deviceStore, incidentStore, ws.NewHub(), nil, elasticCfg, agentClient, agentCfg)
+}
+
 func TestTelemetryHandlerRejectsWrongMethod(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/telemetry", nil)
 	resp := httptest.NewRecorder()
 
-	makeTelemetryHandler(store.NewDeviceStore(), incidents.NewStore(), ws.NewHub())(resp, req)
+	newTestTelemetryHandler(store.NewDeviceStore(), incidents.NewStore())(resp, req)
 
 	if resp.Code != http.StatusMethodNotAllowed {
 		t.Fatalf("status = %d, want %d", resp.Code, http.StatusMethodNotAllowed)
@@ -29,7 +38,7 @@ func TestTelemetryHandlerRejectsInvalidJSON(t *testing.T) {
 	req := httptest.NewRequest(http.MethodPost, "/telemetry", bytes.NewBufferString("not-json"))
 	resp := httptest.NewRecorder()
 
-	makeTelemetryHandler(store.NewDeviceStore(), incidents.NewStore(), ws.NewHub())(resp, req)
+	newTestTelemetryHandler(store.NewDeviceStore(), incidents.NewStore())(resp, req)
 
 	if resp.Code != http.StatusBadRequest {
 		t.Fatalf("status = %d, want %d", resp.Code, http.StatusBadRequest)
@@ -44,7 +53,7 @@ func TestTelemetryHandlerAcceptsValidPayload(t *testing.T) {
 	req.Header.Set("X-PulseOps-Device-ID", "DEV-AGENT-01")
 	resp := httptest.NewRecorder()
 
-	makeTelemetryHandler(store.NewDeviceStore(), incidents.NewStore(), ws.NewHub())(resp, req)
+	newTestTelemetryHandler(store.NewDeviceStore(), incidents.NewStore())(resp, req)
 
 	if resp.Code != http.StatusAccepted {
 		t.Fatalf("status = %d, want %d", resp.Code, http.StatusAccepted)
@@ -65,7 +74,7 @@ func TestTelemetryHandlerUpdatesStore(t *testing.T) {
 	req := httptest.NewRequest(http.MethodPost, "/telemetry", bytes.NewBufferString(body))
 	resp := httptest.NewRecorder()
 
-	makeTelemetryHandler(s, incidents.NewStore(), ws.NewHub())(resp, req)
+	newTestTelemetryHandler(s, incidents.NewStore())(resp, req)
 
 	if resp.Code != http.StatusAccepted {
 		t.Fatalf("status = %d, want %d", resp.Code, http.StatusAccepted)
@@ -93,7 +102,7 @@ func TestTelemetryHandler_CreatesIncidentAndExposesViaAPI(t *testing.T) {
 	deviceStore := store.NewDeviceStore()
 	incidentStore := incidents.NewStore()
 
-	handler := makeTelemetryHandler(deviceStore, incidentStore, ws.NewHub())
+	handler := newTestTelemetryHandler(deviceStore, incidentStore)
 	body := `{"schemaVersion":"1.0.0","deviceId":"LAPTOP-22","timestamp":"2026-05-23T10:00:00Z","heartbeat":true,"serviceName":"OpenVPNService","serviceStatus":"stopped","networkReachable":true,"cpuUsage":14.5,"memoryUsage":62.3,"recentLogs":["service stopped"]}`
 	req := httptest.NewRequest(http.MethodPost, "/telemetry", bytes.NewBufferString(body))
 	resp := httptest.NewRecorder()
@@ -132,7 +141,7 @@ func TestTelemetryHandler_CreatesIncidentAndExposesViaAPI(t *testing.T) {
 func TestTelemetryHandler_ReusesActiveIncidentForRepeatedFailure(t *testing.T) {
 	deviceStore := store.NewDeviceStore()
 	incidentStore := incidents.NewStore()
-	handler := makeTelemetryHandler(deviceStore, incidentStore, ws.NewHub())
+	handler := newTestTelemetryHandler(deviceStore, incidentStore)
 
 	body := `{"schemaVersion":"1.0.0","deviceId":"LAPTOP-22","timestamp":"2026-05-23T10:00:00Z","heartbeat":true,"serviceName":"OpenVPNService","serviceStatus":"stopped","networkReachable":true,"cpuUsage":14.5,"memoryUsage":62.3,"recentLogs":["service stopped"]}`
 	firstReq := httptest.NewRequest(http.MethodPost, "/telemetry", bytes.NewBufferString(body))
@@ -171,7 +180,7 @@ func TestTelemetryToIncidentEndpoints_EndToEnd(t *testing.T) {
 	hub := ws.NewHub()
 
 	mux := http.NewServeMux()
-	mux.HandleFunc("/telemetry", makeTelemetryHandler(deviceStore, incidentStore, hub))
+	mux.HandleFunc("/telemetry", makeTelemetryHandler(deviceStore, incidentStore, hub, nil, nil, nil, nil))
 	mux.HandleFunc("/incidents", api.IncidentsHandler(incidentStore))
 	mux.HandleFunc("/incidents/", api.IncidentByIDHandler(incidentStore))
 
@@ -232,7 +241,7 @@ func TestTelemetryToIncidentEndpoints_EndToEnd(t *testing.T) {
 func TestTelemetryHandler_RepeatedFailureRefreshesIncidentTimestamps(t *testing.T) {
 	deviceStore := store.NewDeviceStore()
 	incidentStore := incidents.NewStore()
-	handler := makeTelemetryHandler(deviceStore, incidentStore, ws.NewHub())
+	handler := newTestTelemetryHandler(deviceStore, incidentStore)
 
 	firstBody := `{"schemaVersion":"1.0.0","deviceId":"LAPTOP-22","timestamp":"2026-05-23T10:00:00Z","heartbeat":true,"serviceName":"OpenVPNService","serviceStatus":"stopped","networkReachable":true,"cpuUsage":14.5,"memoryUsage":62.3,"recentLogs":["service stopped"]}`
 	firstReq := httptest.NewRequest(http.MethodPost, "/telemetry", bytes.NewBufferString(firstBody))

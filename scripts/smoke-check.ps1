@@ -1,6 +1,6 @@
 param(
     [switch]$SkipBuild,
-    [ValidateSet('phase3', 'phase4')]
+    [ValidateSet('phase3', 'phase4', 'phase6')]
     [string]$Phase = 'phase3',
     [switch]$NoFrontend
 )
@@ -29,6 +29,9 @@ $agentLog = Join-Path $evidenceDir 'agent.log'
 $agentErrLog = Join-Path $evidenceDir 'agent.err.log'
 $frontendLog = Join-Path $evidenceDir 'frontend.log'
 $frontendErrLog = Join-Path $evidenceDir 'frontend.err.log'
+$agentBuilderRequestLog = Join-Path $evidenceDir 'agent_builder_request.log'
+$agentBuilderResponseLog = Join-Path $evidenceDir 'agent_builder_response.log'
+$agentBuilderFailureLog = Join-Path $evidenceDir 'agent_builder_failure.log'
 
 New-Item -ItemType Directory -Path $evidenceDir -Force | Out-Null
 
@@ -60,6 +63,30 @@ function Write-JsonEvidence {
 
     $json = $Value | ConvertTo-Json -Depth 10
     [System.IO.File]::WriteAllText($Path, $json)
+}
+
+function Wait-ForLogMatch {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Path,
+        [Parameter(Mandatory = $true)]
+        [string]$Pattern,
+        [int]$TimeoutSeconds = 20,
+        [int]$IntervalMilliseconds = 500
+    )
+
+    $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
+    while ((Get-Date) -lt $deadline) {
+        if (Test-Path $Path) {
+            $match = Select-String -Path $Path -Pattern $Pattern -SimpleMatch -ErrorAction SilentlyContinue | Select-Object -Last 1
+            if ($match) {
+                return $match.Line
+            }
+        }
+        Start-Sleep -Milliseconds $IntervalMilliseconds
+    }
+
+    return $null
 }
 
 function New-FailureTelemetry {
@@ -194,6 +221,77 @@ try {
         Write-Host '  2) Confirm Endpoint Health shows connected + live CPU/memory values'
         Write-Host '  3) Stop monitored service and confirm card turns red within one heartbeat interval'
         Write-Host '  4) Restart service and confirm card returns green'
+        return
+    }
+
+    if ($Phase -eq 'phase6') {
+        $baselineIncidents = Invoke-RestMethod -Uri "${incidentsUrl}?active=true" -Method Get -TimeoutSec 2
+        Write-JsonEvidence -Path (Join-Path $evidenceDir 'baseline_incidents.json') -Value $baselineIncidents
+        if ($baselineIncidents -is [System.Array] -and $baselineIncidents.Count -gt 0) {
+            throw 'Expected no active incidents at baseline for Phase 6 smoke check.'
+        }
+
+        $failureTimestamp = (Get-Date).ToUniversalTime()
+        $failureTelemetry = New-FailureTelemetry -DeviceId $expectedDeviceId -ServiceName $monitoredServiceName -TimestampUtc $failureTimestamp -RecentLogs @('phase6 smoke: service stopped while heartbeat true')
+        $requestId = "phase6-$runId-1"
+        $telemetryResponse = Invoke-RestMethod -Uri $telemetryUrl -Method Post -Headers @{
+            'X-PulseOps-Request-ID' = $requestId
+            'X-PulseOps-Request-Attempt' = '1'
+            'X-PulseOps-Device-ID' = $expectedDeviceId
+        } -ContentType 'application/json' -Body ($failureTelemetry | ConvertTo-Json -Depth 5) -TimeoutSec 3
+        Write-JsonEvidence -Path (Join-Path $evidenceDir 'telemetry_post_response.json') -Value $telemetryResponse
+
+        $incidentReady = Wait-Until -TimeoutSeconds 20 -IntervalMilliseconds 500 -Check {
+            try {
+                $active = Invoke-RestMethod -Uri "${incidentsUrl}?active=true&deviceId=$([uri]::EscapeDataString($expectedDeviceId))" -Method Get -TimeoutSec 2
+                if (-not ($active -is [System.Array]) -or $active.Count -lt 1) {
+                    return $false
+                }
+                return $active[0].state -eq 'investigating'
+            } catch {
+                return $false
+            }
+        }
+        if (-not $incidentReady) {
+            throw 'Active incident did not reach investigating state within timeout.'
+        }
+
+        $activeIncident = Invoke-RestMethod -Uri "${incidentsUrl}?active=true&deviceId=$([uri]::EscapeDataString($expectedDeviceId))" -Method Get -TimeoutSec 2
+        Write-JsonEvidence -Path (Join-Path $evidenceDir 'incidents_after_failure.json') -Value $activeIncident
+
+        $requestLine = Wait-ForLogMatch -Path $backendLog -Pattern 'agent_builder_request' -TimeoutSeconds 20
+        if ($requestLine) {
+            Set-Content -Path $agentBuilderRequestLog -Value $requestLine
+        }
+
+        $responseLine = Wait-ForLogMatch -Path $backendLog -Pattern 'agent_builder_response' -TimeoutSeconds 10
+        if ($responseLine) {
+            Set-Content -Path $agentBuilderResponseLog -Value $responseLine
+        }
+
+        $failureLine = Wait-ForLogMatch -Path $backendLog -Pattern 'agent builder submit failed' -TimeoutSeconds 2
+        if ($failureLine) {
+            Set-Content -Path $agentBuilderFailureLog -Value $failureLine
+        }
+
+        $summary = @{
+            phase = $Phase
+            runId = $runId
+            deviceId = $expectedDeviceId
+            serviceName = $monitoredServiceName
+            requestId = $requestId
+            activeIncidentId = $activeIncident[0].incidentId
+            activeIncidentState = $activeIncident[0].state
+            agentBuilderRequestLogged = [bool]$requestLine
+            agentBuilderResponseLogged = [bool]$responseLine
+            agentBuilderFailureLogged = [bool]$failureLine
+            evidenceDir = $evidenceDir
+        }
+        Write-JsonEvidence -Path (Join-Path $evidenceDir 'summary.json') -Value $summary
+
+        Write-Host '[smoke-check] PASS: Phase 6 handoff smoke check completed.'
+        Write-Host "[smoke-check] Active incident id: $($activeIncident[0].incidentId)"
+        Write-Host "[smoke-check] Evidence written to: $evidenceDir"
         return
     }
 

@@ -28,7 +28,8 @@ const (
 	serviceCheckTimeout = 700 * time.Millisecond
 	logCollectTimeout   = 600 * time.Millisecond
 	networkCheckTimeout = 600 * time.Millisecond
-	metricsCheckTimeout = 900 * time.Millisecond
+	// CIM-based metrics collection on Windows commonly exceeds 1s.
+	metricsCheckTimeout = 3 * time.Second
 )
 
 var defaultRetryBackoffs = []time.Duration{250 * time.Millisecond, 750 * time.Millisecond}

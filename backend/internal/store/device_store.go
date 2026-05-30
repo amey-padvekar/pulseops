@@ -69,3 +69,10 @@ func (s *DeviceStore) List() []DeviceState {
 	})
 	return result
 }
+
+// Count returns the total number of devices currently tracked by the store.
+func (s *DeviceStore) Count() int {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return len(s.devices)
+}
