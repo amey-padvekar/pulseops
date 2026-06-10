@@ -1,0 +1,35 @@
+{
+  "displayName": "PulseOps investigate error rate > 5% (10m)",
+  "documentation": {
+    "content": "Error rate of POST /investigate exceeded 5% over a 10 minute window. Numerator: investigate_errors (status_transport=error). Denominator: investigate_requests. Check Cloud Run logs filtered by jsonPayload.message=\"investigate_request\" and inspect outcome / status_workflow.",
+    "mimeType": "text/markdown"
+  },
+  "combiner": "OR",
+  "conditions": [
+    {
+      "displayName": "investigate error ratio > 0.05 for 10m",
+      "conditionThreshold": {
+        "filter": "metric.type=\"logging.googleapis.com/user/investigate_errors\" resource.type=\"cloud_run_revision\"",
+        "denominatorFilter": "metric.type=\"logging.googleapis.com/user/investigate_requests\" resource.type=\"cloud_run_revision\"",
+        "comparison": "COMPARISON_GT",
+        "thresholdValue": 0.05,
+        "duration": "600s",
+        "aggregations": [
+          {
+            "alignmentPeriod": "60s",
+            "perSeriesAligner": "ALIGN_RATE"
+          }
+        ],
+        "denominatorAggregations": [
+          {
+            "alignmentPeriod": "60s",
+            "perSeriesAligner": "ALIGN_RATE"
+          }
+        ],
+        "trigger": {
+          "count": 1
+        }
+      }
+    }
+  ]
+}

@@ -196,12 +196,40 @@ func TestIncidentByIDHandler_EmptyIDReturns404(t *testing.T) {
 
 func TestIncidentByIDHandler_MethodNotAllowed(t *testing.T) {
 	s := incidents.NewStore()
-	for _, method := range []string{http.MethodPost, http.MethodPut, http.MethodDelete} {
+	// DELETE is now a supported method (dismiss); it is covered separately.
+	for _, method := range []string{http.MethodPost, http.MethodPut, http.MethodPatch} {
 		req := httptest.NewRequest(method, "/incidents/inc-1", nil)
 		rr := httptest.NewRecorder()
 		api.IncidentByIDHandler(s)(rr, req)
 		if rr.Code != http.StatusMethodNotAllowed {
 			t.Errorf("method %s: expected 405, got %d", method, rr.Code)
 		}
+	}
+}
+
+func TestIncidentByIDHandler_Delete(t *testing.T) {
+	s := seedIncidentStore(t)
+
+	// Delete an existing incident -> 204, then it is gone.
+	del := httptest.NewRequest(http.MethodDelete, "/incidents/inc-2", nil)
+	delRR := httptest.NewRecorder()
+	api.IncidentByIDHandler(s)(delRR, del)
+	if delRR.Code != http.StatusNoContent {
+		t.Fatalf("delete: expected 204, got %d", delRR.Code)
+	}
+
+	get := httptest.NewRequest(http.MethodGet, "/incidents/inc-2", nil)
+	getRR := httptest.NewRecorder()
+	api.IncidentByIDHandler(s)(getRR, get)
+	if getRR.Code != http.StatusNotFound {
+		t.Fatalf("get after delete: expected 404, got %d", getRR.Code)
+	}
+
+	// Deleting a missing incident -> 404.
+	missing := httptest.NewRequest(http.MethodDelete, "/incidents/nope", nil)
+	missingRR := httptest.NewRecorder()
+	api.IncidentByIDHandler(s)(missingRR, missing)
+	if missingRR.Code != http.StatusNotFound {
+		t.Fatalf("delete missing: expected 404, got %d", missingRR.Code)
 	}
 }

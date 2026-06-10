@@ -102,3 +102,57 @@ func TestBroadcastIncidentUpdated_UsesIncidentType(t *testing.T) {
 		t.Fatalf("type: got %q want %q", envelope.Type, ws.EventTypeIncidentUpdated)
 	}
 }
+
+// TestBroadcastIncidentUpdated_CarriesApprovalFields locks the Phase 8 live-sync
+// guarantee: the incident.updated payload must carry the approval metadata so the
+// dashboard reflects an approval without a manual refresh.
+func TestBroadcastIncidentUpdated_CarriesApprovalFields(t *testing.T) {
+	h := ws.NewHub()
+	go h.Run()
+
+	conn, cleanup := dialHub(t, h)
+	defer cleanup()
+
+	time.Sleep(50 * time.Millisecond)
+
+	approvedAt := time.Date(2026, 5, 23, 22, 10, 0, 0, time.UTC)
+	approved := incidents.NewIncidentAt(
+		"inc-1", "LAPTOP-22", "OpenVPNService", "stopped",
+		incidents.SeverityHigh, "service stopped", time.Now().UTC(),
+	)
+	approved.State = incidents.StateApproved
+	approved.ApprovedBy = "demo.operator"
+	approved.ApprovedAt = &approvedAt
+	approved.ApprovalNote = "looks good"
+	approved.ApprovedActions = []string{"restart_service"}
+
+	ws.BroadcastIncidentUpdated(h, approved)
+
+	_ = conn.SetReadDeadline(time.Now().Add(2 * time.Second))
+	_, msg, err := conn.ReadMessage()
+	if err != nil {
+		t.Fatalf("ReadMessage: %v", err)
+	}
+
+	var envelope eventDecode
+	if err := json.Unmarshal(msg, &envelope); err != nil {
+		t.Fatalf("json.Unmarshal envelope: %v", err)
+	}
+
+	var payload incidents.Incident
+	if err := json.Unmarshal(envelope.Payload, &payload); err != nil {
+		t.Fatalf("json.Unmarshal payload: %v", err)
+	}
+	if payload.State != incidents.StateApproved {
+		t.Fatalf("state: got %q want approved", payload.State)
+	}
+	if payload.ApprovedBy != "demo.operator" {
+		t.Fatalf("approvedBy not carried: %q", payload.ApprovedBy)
+	}
+	if payload.ApprovedAt == nil || !payload.ApprovedAt.Equal(approvedAt) {
+		t.Fatalf("approvedAt not carried: %v", payload.ApprovedAt)
+	}
+	if len(payload.ApprovedActions) != 1 || payload.ApprovedActions[0] != "restart_service" {
+		t.Fatalf("approvedActions not carried: %v", payload.ApprovedActions)
+	}
+}

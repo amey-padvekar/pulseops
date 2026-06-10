@@ -56,6 +56,9 @@ func TestTelemetryHandler_ElasticFailureDoesNotBreakIngestion(
 		incidentStore,
 		ws.NewHub(),
 		&failingElasticClient{},
+		nil,
+		nil,
+		nil,
 	)
 
 	body := `{

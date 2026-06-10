@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/certainelf/pulseops/backend/internal/api"
@@ -23,8 +24,10 @@ func TestCORSMiddleware_DefaultOrigin(t *testing.T) {
 	if got := rr.Header().Get("Access-Control-Allow-Origin"); got != "http://localhost:5173" {
 		t.Fatalf("Access-Control-Allow-Origin = %q, want %q", got, "http://localhost:5173")
 	}
-	if got := rr.Header().Get("Access-Control-Allow-Methods"); got == "" {
-		t.Fatal("Access-Control-Allow-Methods should be set")
+	// DELETE must be allowed so the dashboard's "Clear" (dismiss) button can call
+	// DELETE /incidents/{id} cross-origin without the browser blocking the preflight.
+	if got := rr.Header().Get("Access-Control-Allow-Methods"); !strings.Contains(got, "DELETE") {
+		t.Fatalf("Access-Control-Allow-Methods = %q, want it to include DELETE", got)
 	}
 	if got := rr.Header().Get("Access-Control-Allow-Headers"); got == "" {
 		t.Fatal("Access-Control-Allow-Headers should be set")

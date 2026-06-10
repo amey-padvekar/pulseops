@@ -1,7 +1,9 @@
 .dashboard-shell {
   min-height: 100vh;
-  padding: 2.5rem 1.25rem 2rem;
-  width: min(1100px, 100%);
+  /* Laptop-first: a reduced top inset keeps the hero high in the viewport so the
+     key state survives browser chrome and a recording crop (Phase 12 step 4.11). */
+  padding: 1.5rem 1.25rem 2rem;
+  width: min(1180px, 100%);
   margin: 0 auto;
   box-sizing: border-box;
 }
@@ -56,27 +58,359 @@
   font-weight: 600;
 }
 
-.card-grid {
+/* Phase 12 step 4.10: page-level mood banner.
+   A single at-a-glance read of the before/failure/after progression. The baseline
+   is a calm cool slate (deliberately NOT green) so the recovered green reads as
+   clearly distinct from both the idle baseline and the red failure state. */
+.mood-banner {
+  margin-top: var(--space-4);
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.3rem 0.7rem;
+  padding: 0.7rem 1rem;
+  border: 1px solid var(--color-border);
+  border-left: 6px solid var(--state-neutral);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-card);
+  transition: border-color 220ms ease, background-color 220ms ease;
+}
+
+.mood-dot {
+  width: 0.9rem;
+  height: 0.9rem;
+  border-radius: 50%;
+  background: var(--state-neutral);
+  flex-shrink: 0;
+}
+
+.mood-dot-pulse {
+  animation: mood-pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes mood-pulse {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.5;
+    transform: scale(0.78);
+  }
+}
+
+.mood-title {
+  font-weight: 700;
+  font-size: 1rem;
+  color: var(--color-heading);
+}
+
+.mood-sub {
+  color: var(--color-text-muted);
+  font-size: var(--text-body);
+}
+
+/* Baseline — calm and stable (task 1). */
+.mood-baseline {
+  border-left-color: #5b8bb0;
+  background: linear-gradient(180deg, #f5f9fc 0%, var(--color-surface) 60%);
+}
+
+.mood-baseline .mood-dot {
+  background: #5b8bb0;
+}
+
+/* Incident — urgent, but a single restrained banner rather than page-wide noise
+   (task 2). The pulsing dot carries the urgency. */
+.mood-incident {
+  border-left-color: var(--state-danger);
+  border-color: var(--state-danger-border);
+  background: linear-gradient(180deg, var(--state-danger-soft) 0%, var(--color-surface) 60%);
+}
+
+.mood-incident .mood-dot {
+  background: var(--state-danger);
+}
+
+.mood-incident .mood-title {
+  color: var(--state-danger-text);
+}
+
+/* Recovering — in progress (info blue). */
+.mood-recovering {
+  border-left-color: var(--state-info);
+  border-color: #bfdbfe;
+  background: linear-gradient(180deg, var(--state-info-soft) 0%, var(--color-surface) 60%);
+}
+
+.mood-recovering .mood-dot {
+  background: var(--state-info);
+}
+
+.mood-recovering .mood-title {
+  color: var(--state-info-strong);
+}
+
+/* Recovered — distinct, confident green close; clearly not the calm baseline and
+   not the red failure (task 3). Persisted after recovery to keep the narrative
+   visible (task 4). */
+.mood-recovered {
+  border-left-color: var(--state-ok);
+  border-color: var(--state-ok-border);
+  background: linear-gradient(180deg, var(--state-ok-soft) 0%, var(--color-surface) 60%);
+}
+
+.mood-recovered .mood-dot {
+  background: var(--state-ok);
+}
+
+.mood-recovered .mood-title {
+  color: var(--state-ok-text);
+}
+
+/* Failed — terminal, needs attention. Deeper treatment than active incident and a
+   steady (non-pulsing) dot to read as "stopped", not "in motion". */
+.mood-failed {
+  border-left-color: var(--state-danger);
+  border-color: var(--state-danger-border);
+  background: linear-gradient(180deg, var(--state-danger-soft) 0%, var(--color-surface) 60%);
+  box-shadow: 0 10px 24px rgba(185, 28, 28, 0.16);
+}
+
+.mood-failed .mood-dot {
+  background: var(--state-danger);
+}
+
+.mood-failed .mood-title {
+  color: var(--state-danger-text);
+}
+
+/* Phase 12 step 4.1: narrative-first information architecture.
+   Operator controls are demoted into a compact bar; the incident story is laid
+   out as ordered flow stages that read detect -> investigate -> remediate ->
+   validate -> summarize from top-left to bottom-right. */
+.control-bar {
+  margin-top: 1rem;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 1rem 1.5rem;
+  padding: 0.85rem 1rem;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+}
+
+.control-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.control-group > label {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--color-text-muted);
+}
+
+.control-bar .agent-select {
+  min-width: 12rem;
+}
+
+.control-devices {
+  flex: 1 1 16rem;
+}
+
+.control-status {
+  margin-left: auto;
+  flex-direction: row;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.control-badge {
+  display: inline-block;
+  border-radius: 999px;
+  border: 1px solid #d1d5db;
+  padding: 0.2rem 0.6rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.dashboard-flow {
   margin-top: 1rem;
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 0.9rem;
 }
 
+.flow-stage {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+/* The hero, incident timeline, and AI investigation form the core "what's
+   happening" narrative and each take a full row; the action/outcome stages pair
+   up beneath them. */
+.flow-health,
+.flow-incident,
+.flow-investigation,
+.flow-remediation {
+  grid-column: 1 / -1;
+}
+
+/* Approval and execution share a row as a single governance -> action sequence,
+   linked by a connector that reads left-to-right (Phase 12 step 4.5). */
+.remediation-sequence {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: stretch;
+  gap: 0.6rem;
+}
+
+.remediation-sequence > .status-card {
+  margin: 0;
+}
+
+.sequence-connector {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.sequence-connector span {
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: #94a3b8;
+  line-height: 1;
+}
+
+.flow-stage-label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.flow-step {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 50%;
+  background: #1a2e47;
+  color: #eef4fa;
+  font-size: 0.8rem;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.flow-stage-name {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #12304d;
+}
+
+.flow-stage-flow {
+  margin-left: auto;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--color-text-muted);
+}
+
+.flow-stage > .status-card {
+  flex: 1 1 auto;
+}
+
+/* Phase 12 step 4.8: real-time transition polish.
+   When a stage's state changes over websocket, it briefly highlights so viewers
+   can follow the change in motion. The highlight uses `outline` (which does not
+   affect layout) so cards never jump, and a soft transition keeps colour/shadow
+   state changes from snapping. */
+.status-card,
+.hero-panel {
+  transition: border-color 180ms ease, box-shadow 180ms ease, background-color 180ms ease,
+    outline-color 180ms ease;
+}
+
+.flow-stage.is-updated .status-card,
+.flow-stage.is-updated .hero-panel {
+  outline: 2px solid transparent;
+  outline-offset: 2px;
+  animation: flow-flash 1200ms ease-out;
+}
+
+@keyframes flow-flash {
+  0% {
+    outline-color: rgba(37, 99, 235, 0);
+  }
+  18% {
+    outline-color: rgba(37, 99, 235, 0.55);
+  }
+  100% {
+    outline-color: rgba(37, 99, 235, 0);
+  }
+}
+
+/* Gentle status pulse on the current lifecycle node so the live state reads as
+   "in motion" rather than static. */
+.lifecycle-current .lifecycle-node {
+  animation: lifecycle-node-pulse 1.8s ease-in-out infinite;
+}
+
+@keyframes lifecycle-node-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.18);
+  }
+  50% {
+    box-shadow: 0 0 0 6px rgba(37, 99, 235, 0.28);
+  }
+}
+
+/* Respect reduced-motion preferences: keep state legible but drop the animation. */
+@media (prefers-reduced-motion: reduce) {
+  .flow-stage.is-updated .status-card,
+  .flow-stage.is-updated .hero-panel,
+  .mood-dot-pulse,
+  .lifecycle-current .lifecycle-node,
+  .validation-cycle-dot.cycle-next,
+  .hero-recovering .hero-dot,
+  .exec-panel.exec-running .card-chip,
+  .validation-panel.validation-validating .card-chip,
+  .summary-panel.summary-pending .card-chip,
+  .summary-loading,
+  .investigation-loading {
+    animation: none !important;
+  }
+}
+
+.investigation-card .investigation-status-chip {
+  margin-top: 0.4rem;
+}
+
 .status-card {
-  background: #fff;
-  border: 1px solid #d4dde7;
-  border-radius: 14px;
-  padding: 1rem;
-  box-shadow: 0 6px 18px rgba(17, 39, 67, 0.08);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-4);
+  box-shadow: var(--shadow-card);
 }
 
 .status-card.status-running {
-  border-left: 4px solid #22c55e;
+  border-left: 4px solid var(--state-ok);
 }
 
 .status-card.status-stopped {
-  border-left: 4px solid #ef4444;
+  border-left: 4px solid var(--state-danger);
 }
 
 .status-card.status-degraded {
@@ -104,19 +438,1108 @@
 
 .incident-details {
   margin-top: 0.75rem;
-  border-top: 1px solid #e5edf5;
+  border-top: 1px solid var(--color-divider);
   padding-top: 0.75rem;
+}
+
+/* Phase 12 step 4.3: incident lifecycle strip.
+   A compact, left-to-right progression of incident states. Completed steps read
+   green with a check, the current step is highlighted blue, a failed terminal is
+   red, and pending steps are muted — so process progression is legible at a
+   glance and in a screen recording without tiny text. */
+.incident-lifecycle {
+  margin-top: 0.9rem;
+}
+
+.lifecycle-strip {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  align-items: flex-start;
+}
+
+.lifecycle-step {
+  position: relative;
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 0 0.2rem;
+}
+
+/* Connector segment leading into each node (the path already travelled). */
+.lifecycle-step::before {
+  content: '';
+  position: absolute;
+  top: 0.85rem;
+  left: -50%;
+  width: 100%;
+  height: 3px;
+  background: #d8e0ea;
+  z-index: 0;
+}
+
+.lifecycle-step:first-child::before {
+  display: none;
+}
+
+.lifecycle-complete::before,
+.lifecycle-current::before {
+  background: var(--state-ok);
+}
+
+.lifecycle-failed::before {
+  background: #dc2626;
+}
+
+.lifecycle-node {
+  position: relative;
+  z-index: 1;
+  width: 1.7rem;
+  height: 1.7rem;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.8rem;
+  font-weight: 700;
+  background: #fff;
+  border: 2px solid #cbd5e1;
+  color: #64748b;
+}
+
+.lifecycle-complete .lifecycle-node {
+  background: var(--state-ok);
+  border-color: #16a34a;
+  color: #fff;
+}
+
+.lifecycle-current .lifecycle-node {
+  background: #2563eb;
+  border-color: #1d4ed8;
+  color: #fff;
+  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.18);
+}
+
+.lifecycle-failed .lifecycle-node {
+  background: #dc2626;
+  border-color: #b91c1c;
+  color: #fff;
+  box-shadow: 0 0 0 4px rgba(220, 38, 38, 0.18);
+}
+
+.lifecycle-label {
+  margin-top: 0.4rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  line-height: 1.15;
+  color: #334155;
+}
+
+.lifecycle-current .lifecycle-label {
+  color: #1d4ed8;
+}
+
+.lifecycle-failed .lifecycle-label {
+  color: #b91c1c;
+}
+
+.lifecycle-pending .lifecycle-label {
+  color: #94a3b8;
+  font-weight: 500;
+}
+
+.lifecycle-time {
+  margin-top: 0.15rem;
+  font-size: 0.7rem;
+  color: #64748b;
+  white-space: nowrap;
+}
+
+.investigation-panel {
+  margin-top: 12px;
+  padding-top: 8px;
+  border-top: 1px dashed rgba(0,0,0,0.06);
+}
+
+.investigation-status-chip {
+  display: inline-block;
+  margin: 0.2rem 0 0.45rem;
+  border-radius: 999px;
+  border: 1px solid #d1d5db;
+  padding: 0.2rem 0.5rem;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-weight: 600;
+}
+
+.investigation-status-chip.investigation-idle {
+  background: #f3f4f6;
+  color: #374151;
+  border-color: #d1d5db;
+}
+
+.investigation-status-chip.investigation-pending {
+  background: #ffedd5;
+  color: #9a3412;
+  border-color: #fdba74;
+}
+
+.investigation-status-chip.investigation-completed {
+  background: #dcfce7;
+  color: var(--state-ok-text);
+  border-color: #86efac;
+}
+
+.investigation-status-chip.investigation-failed {
+  background: #fee2e2;
+  color: #991b1b;
+  border-color: #fca5a5;
+}
+
+.investigation-result p {
+  margin: 6px 0;
+}
+
+.investigation-result ul, .investigation-result ol {
+  margin: 6px 0 12px 18px;
+}
+
+.investigation-failed .error {
+  color: var(--state-danger-text);
+}
+
+/* Phase 12 step 4.4: AI investigation presentation.
+   The investigation panel carries a distinct indigo "AI" identity so it reads as
+   analysis, clearly separate from the amber/green human-approval and execution
+   stages that follow. */
+.investigation-card {
+  border-left: 4px solid #6366f1;
+}
+
+.investigation-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.badge-ai {
+  background: var(--state-ai-soft);
+  color: var(--state-ai-strong);
+  border-color: var(--state-ai-border);
+}
+
+.investigation-loading {
+  animation: exec-pulse 1.4s ease-in-out infinite;
+}
+
+/* Headline: probable cause + a restrained confidence meter side by side. */
+.ai-headline {
+  display: flex;
+  gap: 1.25rem;
+  align-items: flex-start;
+  margin-top: 0.4rem;
+}
+
+.ai-cause {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.ai-confidence {
+  flex: 0 0 9.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.ai-field-label {
+  display: block;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--color-text-muted);
+}
+
+.ai-cause-text {
+  margin: 0.2rem 0 0;
+  font-size: 1.02rem;
+  font-weight: 600;
+  color: #1e293b;
+  line-height: 1.3;
+}
+
+.confidence-meter {
+  height: 0.55rem;
+  border-radius: 999px;
+  background: #e7ebf2;
+  overflow: hidden;
+}
+
+.confidence-fill {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  transition: width 220ms ease;
+}
+
+.confidence-high {
+  background: var(--state-ok);
+}
+
+.confidence-medium {
+  background: #f59e0b;
+}
+
+.confidence-low {
+  background: var(--state-danger);
+}
+
+.confidence-na {
+  background: #cbd5e1;
+}
+
+.confidence-value {
+  font-weight: 700;
+  font-size: 0.95rem;
+}
+
+.confidence-text-high {
+  color: #15803d;
+}
+
+.confidence-text-medium {
+  color: #b45309;
+}
+
+.confidence-text-low {
+  color: #b91c1c;
+}
+
+.confidence-text-na {
+  color: #64748b;
+}
+
+.ai-summary {
+  margin: 0.85rem 0 0;
+  color: #334155;
+  line-height: 1.4;
+}
+
+.ai-section {
+  margin-top: 0.95rem;
+  border-top: 1px solid var(--color-divider);
+  padding-top: 0.7rem;
+}
+
+.ai-section > strong {
+  display: block;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #64748b;
+  margin-bottom: 0.4rem;
+}
+
+.ai-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.4rem;
+}
+
+.ai-section-head > strong {
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #64748b;
+}
+
+/* Makes clear these are AI proposals, not yet operator-approved actions. */
+.ai-proposed-tag {
+  flex-shrink: 0;
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #4338ca;
+  background: #eef2ff;
+  border: 1px solid #c7d2fe;
+  border-radius: 999px;
+  padding: 0.15rem 0.5rem;
+}
+
+.ai-action-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.ai-action {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.4rem;
+  padding: 0.4rem 0.55rem;
+  background: #f5f6ff;
+  border: 1px solid #e0e3f8;
+  border-radius: 8px;
+}
+
+.ai-action-id {
+  font-weight: 700;
+  color: #3730a3;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.85rem;
+}
+
+.ai-action-target {
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+}
+
+.ai-action-desc {
+  flex-basis: 100%;
+  font-size: 0.85rem;
+  color: #334155;
+}
+
+.ai-validation-list {
+  margin: 0;
+  padding-left: 1.15rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  color: #334155;
+  font-size: 0.88rem;
+}
+
+.ai-evidence-line {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  margin: 0.3rem 0 0;
+  font-size: 0.82rem;
+  color: #475569;
+  line-height: 1.35;
+  word-break: break-word;
+}
+
+.ai-evidence-tag {
+  flex-shrink: 0;
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #475569;
+  background: #e2e8f0;
+  border-radius: 4px;
+  padding: 0.1rem 0.35rem;
+}
+
+/* Phase 8: remediation approval panel */
+.approval-panel {
+  transition: border-color 160ms ease, box-shadow 160ms ease, background-color 160ms ease;
+}
+
+.approval-panel.approval-idle {
+  border-left: 4px solid #9ca3af;
+}
+
+.approval-panel.approval-awaiting {
+  border-left: 4px solid var(--state-warn);
+  border-color: #fde68a;
+  background: linear-gradient(180deg, #fffbeb 0%, #fff 100%);
+  box-shadow: 0 10px 22px rgba(217, 119, 6, 0.14);
+}
+
+.approval-panel.approval-approved {
+  border-left: 4px solid #16a34a;
+  border-color: #bbf7d0;
+  background: linear-gradient(180deg, var(--state-ok-soft) 0%, #fff 100%);
+  box-shadow: 0 10px 22px rgba(22, 163, 74, 0.14);
+}
+
+.approval-body {
+  margin-top: 0.75rem;
+  border-top: 1px solid var(--color-divider);
+  padding-top: 0.75rem;
+}
+
+/* Phase 9 step 4.9: remediation execution panel */
+.exec-panel.exec-running {
+  border-left: 4px solid #f59e0b;
+}
+
+.exec-panel.exec-succeeded {
+  border-left: 4px solid var(--state-ok);
+}
+
+.exec-panel.exec-failed {
+  border-left: 4px solid var(--state-danger);
+}
+
+.exec-panel.exec-queued {
+  border-left: 4px solid #94a3b8;
+}
+
+.exec-panel.exec-running .card-chip {
+  animation: exec-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes exec-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.55;
+  }
+}
+
+/* Phase 10 step 4.8 / Phase 12 step 4.6: recovery validation & closure panel.
+   The validating / resolved / failed states get unmistakable treatments — an
+   active amber while confirming, a satisfying green on success, an alarming red
+   on failure — so the loop closes legibly during a demo. */
+.validation-panel {
+  transition: border-color 180ms ease, box-shadow 180ms ease, background-color 180ms ease;
+}
+
+.validation-panel.validation-executing {
+  border-left: 6px solid #94a3b8;
+}
+
+.validation-panel.validation-validating {
+  border-left: 6px solid #f59e0b;
+  border-color: #fde68a;
+  background: linear-gradient(180deg, #fffbeb 0%, #fff 60%);
+  box-shadow: 0 10px 22px rgba(245, 158, 11, 0.14);
+}
+
+.validation-panel.validation-resolved {
+  border-left: 6px solid #16a34a;
+  border-color: #bbf7d0;
+  background: linear-gradient(180deg, #ecfdf5 0%, #fff 60%);
+  box-shadow: 0 10px 26px rgba(22, 163, 74, 0.16);
+}
+
+.validation-panel.validation-failed {
+  border-left: 6px solid #dc2626;
+  border-color: #fecaca;
+  background: linear-gradient(180deg, #fff5f5 0%, #fff 55%);
+  box-shadow: 0 10px 26px rgba(185, 28, 28, 0.16);
+}
+
+.validation-panel.validation-validating .card-chip {
+  animation: exec-pulse 1.4s ease-in-out infinite;
+}
+
+.validation-cycle-dot.cycle-next {
+  background: #fde68a;
+  border-color: #f59e0b;
+  animation: hero-pulse 1.2s ease-in-out infinite;
+}
+
+.validation-progress-note {
+  margin: 0.5rem 0 0;
+  font-size: 0.83rem;
+  color: #b45309;
+}
+
+.validation-body {
+  margin-top: 0.75rem;
+}
+
+.validation-section {
+  margin-top: 0.9rem;
+  border-top: 1px solid var(--color-divider);
+  padding-top: 0.75rem;
+}
+
+.validation-section > strong {
+  display: block;
+  margin-bottom: 0.5rem;
+}
+
+.validation-state-pill {
+  display: inline-block;
+  padding: 0.1rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.validation-state-executing {
+  background: #e2e8f0;
+  color: #475569;
+}
+
+.validation-state-validating {
+  background: #fef3c7;
+  color: #b45309;
+}
+
+.validation-state-resolved {
+  background: #dcfce7;
+  color: #15803d;
+}
+
+.validation-state-failed {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.validation-cycles {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.validation-cycle-dots {
+  display: inline-flex;
+  gap: 0.35rem;
+}
+
+.validation-cycle-dot {
+  width: 0.85rem;
+  height: 0.85rem;
+  border-radius: 50%;
+  border: 1px solid #cbd5e1;
+}
+
+.validation-cycle-dot.cycle-filled {
+  background: var(--state-ok);
+  border-color: #16a34a;
+}
+
+.validation-cycle-dot.cycle-empty {
+  background: #f1f5f9;
+}
+
+.validation-cycle-text {
+  font-size: 0.85rem;
+  color: #475569;
+}
+
+.validation-criteria-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.validation-criterion {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.validation-criterion-text {
+  font-size: 0.88rem;
+  color: #334155;
+}
+
+.validation-snapshot-meta {
+  margin-top: 0.5rem;
+  font-size: 0.8rem;
+  color: #64748b;
+}
+
+.validation-outcome {
+  margin-top: 1rem;
+  padding: 0.75rem 0.85rem;
+  border-radius: 10px;
+  font-weight: 600;
+  font-size: 0.95rem;
+  line-height: 1.35;
+  border: 1px solid transparent;
+}
+
+.validation-outcome-resolved {
+  background: #dcfce7;
+  color: #15803d;
+  border-color: #86efac;
+}
+
+.validation-outcome-failed {
+  background: #fee2e2;
+  color: #b91c1c;
+  border-color: #fca5a5;
+}
+
+.validation-command-failed-note {
+  margin-top: 0.5rem;
+  font-size: 0.85rem;
+  color: #64748b;
+}
+
+/* Phase 11 step 4.8 / Phase 12 step 4.6: final incident summary panel.
+   The resolved report reads as a satisfying conclusion (green), a failed outcome
+   as a clear unresolved close (red), and generation as an active amber. */
+.summary-panel {
+  transition: border-color 180ms ease, box-shadow 180ms ease, background-color 180ms ease;
+}
+
+.summary-panel.summary-ready {
+  border-left: 6px solid #16a34a;
+  border-color: #bbf7d0;
+  background: linear-gradient(180deg, #ecfdf5 0%, #fff 60%);
+  box-shadow: 0 10px 26px rgba(22, 163, 74, 0.16);
+}
+
+.summary-panel.summary-failed-outcome,
+.summary-panel.summary-failed {
+  border-left: 6px solid #dc2626;
+  border-color: #fecaca;
+  background: linear-gradient(180deg, #fff5f5 0%, #fff 55%);
+  box-shadow: 0 10px 26px rgba(185, 28, 28, 0.16);
+}
+
+.summary-panel.summary-pending {
+  border-left: 6px solid #f59e0b;
+}
+
+.summary-panel.summary-pending .card-chip {
+  animation: exec-pulse 1.4s ease-in-out infinite;
+}
+
+.summary-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.summary-copy-button {
+  flex-shrink: 0;
+  padding: 0.25rem 0.7rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #334155;
+  background: #f1f5f9;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.summary-copy-button:hover {
+  background: #e2e8f0;
+  border-color: #94a3b8;
+}
+
+.summary-copy-button:focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: 1px;
+}
+
+/* Selectable, screenshot-friendly summary text. */
+.summary-body {
+  margin-top: 0.75rem;
+  user-select: text;
+}
+
+.summary-operator {
+  margin: 0 0 0.75rem;
+  padding: 0.6rem 0.75rem;
+  background: #f1f5f9;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.summary-section {
+  margin-top: 0.9rem;
+  border-top: 1px solid var(--color-divider);
+  padding-top: 0.75rem;
+}
+
+.summary-section > strong {
+  display: block;
+  margin-bottom: 0.4rem;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #64748b;
+}
+
+.summary-root-cause {
+  margin: 0;
+  font-size: 0.92rem;
+  color: #1e293b;
+}
+
+.summary-list {
+  list-style: disc;
+  margin: 0;
+  padding-left: 1.1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.summary-list li {
+  font-size: 0.88rem;
+  color: #334155;
+}
+
+.summary-result {
+  margin-top: 1rem;
+  padding: 0.75rem 0.85rem;
+  border-radius: 10px;
+  font-weight: 700;
+  font-size: 0.98rem;
+  line-height: 1.35;
+  border: 1px solid transparent;
+}
+
+.summary-result-resolved {
+  background: #dcfce7;
+  color: #15803d;
+  border-color: #86efac;
+}
+
+.summary-result-failed {
+  background: #fee2e2;
+  color: #b91c1c;
+  border-color: #fca5a5;
+}
+
+.summary-loading {
+  animation: exec-pulse 1.4s ease-in-out infinite;
+}
+
+.summary-fallback-note {
+  margin-top: 0.5rem;
+  font-size: 0.85rem;
+  color: #64748b;
+}
+
+.summary-fallback-banner {
+  margin: 0 0 0.75rem;
+  padding: 0.45rem 0.65rem;
+  background: #fef9c3;
+  border: 1px solid #fde047;
+  border-radius: 6px;
+  font-size: 0.82rem;
+  color: #854d0e;
+}
+
+.summary-meta {
+  margin-top: 0.6rem;
+  font-size: 0.8rem;
+  color: #94a3b8;
+}
+
+.exec-body {
+  margin-top: 0.5rem;
+}
+
+.exec-approved-list {
+  list-style: none;
+  margin: 0.4rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.exec-action-list {
+  list-style: none;
+  margin: 0.4rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.exec-action {
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 0.5rem 0.6rem;
+  background: #f8fafc;
+}
+
+.exec-action-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.exec-action-meta {
+  display: flex;
+  gap: 0.75rem;
+  margin-top: 0.25rem;
+  font-size: 0.72rem;
+  color: var(--color-text-muted);
+}
+
+.exec-log {
+  margin: 0.4rem 0 0;
+  padding: 0.45rem 0.55rem;
+  border-radius: 6px;
+  font-size: 0.72rem;
+  line-height: 1.35;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 7.5rem;
+  overflow: auto;
+}
+
+.exec-stdout {
+  background: #0f172a;
+  color: #e2e8f0;
+}
+
+.exec-stderr {
+  background: #2a0f12;
+  color: #fecaca;
+}
+
+/* Phase 12 step 4.7: keep raw command output compact on the main UI; full detail
+   is preserved in the backend record and agent logs. */
+.exec-log-truncated {
+  margin: 0.25rem 0 0;
+  font-size: 0.68rem;
+  font-style: italic;
+  color: #94a3b8;
+}
+
+.exec-evidence-note {
+  margin: 0.5rem 0 0;
+  font-size: 0.76rem;
+  color: var(--color-text-muted);
+}
+
+.exec-timeline {
+  list-style: none;
+  margin: 0.4rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.exec-timeline li {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  font-size: 0.78rem;
+}
+
+.exec-timeline-label {
+  font-weight: 600;
+  color: #173654;
+}
+
+.exec-timeline-time {
+  color: var(--color-text-muted);
+}
+
+.approval-section {
+  margin: 0.6rem 0;
+}
+
+.approval-section ol {
+  margin: 6px 0 12px 18px;
+}
+
+.approval-action-list {
+  list-style: none;
+  margin: 6px 0 12px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.approval-action-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  cursor: pointer;
+}
+
+.approval-action-option input {
+  margin-top: 0.2rem;
+}
+
+.approval-action-approved {
+  color: var(--state-ok-text);
+  font-weight: 600;
+}
+
+.approval-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  margin-top: 0.5rem;
+}
+
+.approval-controls label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #334155;
+}
+
+.approval-input {
+  border: 1px solid #c3d4e5;
+  border-radius: 8px;
+  padding: 0.4rem 0.6rem;
+  font: inherit;
+  font-size: 0.85rem;
+}
+
+.approval-input:disabled {
+  background: #f1f5f9;
+  color: #94a3b8;
+}
+
+.approval-button {
+  margin-top: 0.4rem;
+  align-self: flex-start;
+  border: 1px solid #15803d;
+  background: #16a34a;
+  color: #fff;
+  border-radius: 8px;
+  padding: 0.45rem 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 120ms ease, opacity 120ms ease;
+}
+
+.approval-button:hover:not(:disabled) {
+  background: #15803d;
+}
+
+.approval-button:disabled {
+  background: #cbd5e1;
+  border-color: #cbd5e1;
+  color: #f8fafc;
+  cursor: not-allowed;
+}
+
+.approval-feedback {
+  margin: 0.5rem 0 0;
+  font-size: 0.85rem;
+}
+
+.approval-feedback-success {
+  color: var(--state-ok-text);
+}
+
+.approval-feedback-error {
+  color: var(--state-danger-text);
+}
+
+.approval-result p {
+  margin: 6px 0;
+}
+
+/* Phase 12 step 4.5: clear, scannable approval metadata (who approved, when). */
+.approval-meta {
+  margin: 0.4rem 0 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.6rem;
+  padding: 0.6rem 0.7rem;
+  background: var(--state-ok-soft);
+  border: 1px solid #bbf7d0;
+  border-radius: 8px;
+}
+
+.approval-meta dt {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-text-muted);
+}
+
+.approval-meta dd {
+  margin: 0.2rem 0 0;
+  font-weight: 600;
+  color: #14532d;
+  word-break: break-word;
+}
+
+.approval-note {
+  margin: 0.6rem 0 0;
+  font-style: italic;
+  color: #475569;
+}
+
+.approval-handoff {
+  margin: 0.6rem 0 0;
+  font-weight: 600;
+  color: #15803d;
+}
+
+/* Execution gate: makes the "only after approval" dependency unmistakable. */
+.exec-gate-note {
+  margin: 0.1rem 0 0;
+  font-size: 0.78rem;
+  color: var(--color-text-muted);
+}
+
+.exec-panel.exec-locked {
+  border-left: 4px solid #94a3b8;
+  background: repeating-linear-gradient(
+    135deg,
+    #f8fafc,
+    #f8fafc 10px,
+    #f1f5f9 10px,
+    #f1f5f9 20px
+  );
+}
+
+.exec-gate {
+  margin-top: 0.75rem;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.7rem 0.8rem;
+  background: #fff;
+  border: 1px dashed #cbd5e1;
+  border-radius: 8px;
+}
+
+.exec-gate-icon {
+  font-size: 1.3rem;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.exec-gate p {
+  margin: 0;
+  font-size: 0.88rem;
+  color: #475569;
 }
 
 .card-chip {
   display: inline-block;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   border: 1px solid #8fa7c2;
   color: #24496f;
   background: #edf5ff;
   text-transform: uppercase;
   letter-spacing: 0.08em;
   font-size: 0.7rem;
+  font-weight: 600;
   padding: 0.22rem 0.55rem;
 }
 
@@ -132,33 +1555,185 @@
 }
 
 .badge-running {
-  background: #dcfce7;
-  color: #15803d;
-  border-color: #86efac;
+  background: var(--badge-ok-bg);
+  color: var(--badge-ok-fg);
+  border-color: var(--badge-ok-border);
 }
 
 .badge-stopped {
-  background: #fee2e2;
-  color: #b91c1c;
-  border-color: #fca5a5;
+  background: var(--badge-danger-bg);
+  color: var(--badge-danger-fg);
+  border-color: var(--badge-danger-border);
 }
 
 .badge-degraded {
-  background: #ffedd5;
-  color: #c2410c;
-  border-color: #fdba74;
+  background: var(--badge-warn-bg);
+  color: var(--badge-warn-fg);
+  border-color: var(--badge-warn-border);
 }
 
 .badge-unknown,
 .badge-placeholder {
-  background: #f3f4f6;
-  color: #374151;
-  border-color: #d1d5db;
+  background: var(--badge-neutral-bg);
+  color: var(--badge-neutral-fg);
+  border-color: var(--badge-neutral-border);
+}
+
+/* Incident list / history panel */
+.incident-list-panel {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-4);
+  box-shadow: var(--shadow-card);
+  margin-bottom: var(--space-4);
+}
+
+.incident-list-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.75rem;
+}
+
+.incident-list-header h2 {
+  margin: 0;
+  color: #12304d;
+  font-size: 1.05rem;
+}
+
+.incident-list-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.6rem;
+  height: 1.6rem;
+  padding: 0 0.5rem;
+  border-radius: var(--radius-pill);
+  background: var(--badge-neutral-bg, #eef2f7);
+  color: #3e5873;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.incident-list-empty {
+  margin: 0;
+  color: #6b7280;
+  font-size: 0.9rem;
+}
+
+.incident-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  max-height: 16rem;
+  overflow-y: auto;
+}
+
+.incident-row {
+  display: flex;
+  align-items: stretch;
+  gap: 0.4rem;
+  border: 1px solid var(--color-border);
+  border-radius: 0.5rem;
+  background: var(--color-surface);
+  overflow: hidden;
+}
+
+.incident-row.is-selected {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 1px rgba(37, 99, 235, 0.25);
+}
+
+.incident-row-main {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 6.5rem 8rem 1fr auto;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.55rem 0.7rem;
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  color: inherit;
+  font: inherit;
+  min-width: 0;
+}
+
+.incident-row-main:hover {
+  background: #f4f8ff;
+}
+
+.incident-row-state {
+  justify-self: start;
+  display: inline-block;
+  border-radius: var(--radius-pill);
+  border: 1px solid transparent;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-size: 0.65rem;
+  font-weight: 700;
+  padding: 0.18rem 0.5rem;
+  white-space: nowrap;
+}
+
+.incident-row-service {
+  font-weight: 600;
+  color: #12304d;
+  font-size: 0.85rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.incident-row-status {
+  color: #3e5873;
+  font-size: 0.82rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+.incident-row-time {
+  color: #6b7280;
+  font-size: 0.75rem;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.incident-row-clear {
+  flex: 0 0 auto;
+  border: none;
+  border-left: 1px solid var(--color-border);
+  background: none;
+  color: var(--badge-danger-fg, #b42318);
+  font-size: 0.78rem;
+  font-weight: 600;
+  padding: 0 0.85rem;
+  cursor: pointer;
+}
+
+.incident-row-clear:hover {
+  background: var(--badge-danger-bg, #fee4e2);
+}
+
+@media (max-width: 720px) {
+  .incident-row-main {
+    grid-template-columns: 5rem 1fr;
+  }
+  .incident-row-time {
+    display: none;
+  }
 }
 
 .device-metrics {
   margin-top: 0.75rem;
-  border-top: 1px solid #e5edf5;
+  border-top: 1px solid var(--color-divider);
   padding-top: 0.75rem;
 }
 
@@ -173,13 +1748,15 @@
   font-size: 0.75rem;
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  color: #5f7893;
+  color: var(--color-text-muted);
 }
 
 .metrics-grid dd {
   margin: 0.2rem 0 0;
   color: #173654;
   font-weight: 600;
+  /* Long incident/request IDs wrap instead of forcing horizontal scroll. */
+  overflow-wrap: anywhere;
 }
 
 .metric-bar {
@@ -217,14 +1794,33 @@
   margin-bottom: 0.15rem;
 }
 
+/* Empty states read as a deliberate "waiting" affordance, not missing data
+   (Phase 12 step 4.9 task 3): a calm tinted panel with a soft accent rail. */
 .empty-log {
   font-size: 0.87rem;
-  color: #5f7893;
+  color: var(--color-text-muted);
+  line-height: 1.4;
+}
+
+p.empty-log {
+  margin: var(--space-2) 0 0;
+  padding: var(--space-3);
+  background: #f7fafc;
+  border: 1px solid var(--color-divider);
+  border-left: 3px solid var(--state-neutral);
+  border-radius: var(--radius-md);
+}
+
+/* The loading variants keep their pulse but stay on the tinted panel. */
+p.empty-log.investigation-loading,
+p.empty-log.summary-loading {
+  border-left-color: var(--state-warn);
+  color: var(--state-warn-text);
 }
 
 .agent-list-wrap {
   margin-top: 0.75rem;
-  border-top: 1px solid #e5edf5;
+  border-top: 1px solid var(--color-divider);
   padding-top: 0.75rem;
 }
 
@@ -233,7 +1829,7 @@
   font-size: 0.75rem;
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  color: #5f7893;
+  color: var(--color-text-muted);
   margin-bottom: 0.35rem;
 }
 
@@ -290,11 +1886,516 @@
     padding: 1rem 0.75rem;
   }
 
-  .card-grid {
+  .dashboard-flow {
     grid-template-columns: 1fr;
+  }
+
+  /* Keep narrative order intact when stacked to one column. */
+  .flow-investigation {
+    grid-column: auto;
+  }
+
+  .control-status {
+    margin-left: 0;
+    flex-wrap: wrap;
   }
 
   .metrics-grid {
     grid-template-columns: 1fr;
   }
+
+  .hero-facts {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .hero-banner {
+    flex-wrap: wrap;
+  }
+
+  /* Stack the lifecycle strip vertically so labels stay readable on narrow
+     screens instead of cramming seven nodes across the width. */
+  .lifecycle-strip {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .lifecycle-step {
+    flex-direction: row;
+    align-items: center;
+    gap: 0.6rem;
+    text-align: left;
+    padding: 0.35rem 0;
+  }
+
+  .lifecycle-step::before {
+    top: -50%;
+    left: 0.82rem;
+    width: 3px;
+    height: 100%;
+  }
+
+  .lifecycle-label {
+    margin-top: 0;
+  }
+
+  .lifecycle-time {
+    margin-top: 0;
+    margin-left: auto;
+  }
+
+  .ai-headline {
+    flex-direction: column;
+    gap: 0.7rem;
+  }
+
+  .ai-confidence {
+    flex-basis: auto;
+    width: 100%;
+  }
+}
+
+/* Intermediate widths (narrow laptops / tablets): the approval form and the
+   execution log panel are both dense, so stack them before they get cramped
+   rather than waiting for the full single-column breakpoint. Cascades to narrower
+   widths too (Phase 12 step 4.11). */
+@media (max-width: 1024px) {
+  .remediation-sequence {
+    grid-template-columns: 1fr;
+  }
+
+  .sequence-connector span {
+    display: inline-block;
+    transform: rotate(90deg);
+  }
+}
+
+/* Phase 12 step 4.2: primary hero state and health panel.
+   The hero is the first thing a viewer reads — a large, color-coded operational
+   state plus the key facts (device, service, status, connectivity, last
+   telemetry). State treatments are strong enough to read in a screen recording
+   and distinguish healthy / degraded / stopped / recovering / resolved / failed. */
+.hero-panel {
+  border: 1px solid #d4dde7;
+  border-radius: 16px;
+  padding: 1.1rem 1.25rem;
+  background: #fff;
+  box-shadow: 0 8px 22px rgba(17, 39, 67, 0.08);
+  border-left: 8px solid #9ca3af;
+  transition: border-color 180ms ease, box-shadow 180ms ease, background-color 180ms ease;
+}
+
+.hero-banner {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.hero-dot {
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: #9ca3af;
+  box-shadow: 0 0 0 6px rgba(156, 163, 175, 0.18);
+}
+
+.hero-headline {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.hero-state-word {
+  margin: 0;
+  font-size: clamp(1.5rem, 1.2vw + 1.1rem, 2.1rem);
+  font-weight: 800;
+  line-height: 1.05;
+  color: #12304d;
+}
+
+.hero-state-sub {
+  margin: 0;
+  font-size: 0.92rem;
+  color: var(--color-text-muted);
+}
+
+.hero-flags {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.hero-flag {
+  display: inline-block;
+  border-radius: 999px;
+  padding: 0.2rem 0.6rem;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  border: 1px solid #d1d5db;
+  background: #f3f4f6;
+  color: #374151;
+}
+
+.hero-flag-live {
+  background: #dcfce7;
+  color: #15803d;
+  border-color: #86efac;
+}
+
+.hero-flag-stale {
+  background: #ffedd5;
+  color: #c2410c;
+  border-color: #fdba74;
+}
+
+.hero-flag-recovered {
+  background: #d1fae5;
+  color: #047857;
+  border-color: #6ee7b7;
+}
+
+.hero-facts {
+  margin: 1rem 0 0;
+  display: grid;
+  /* auto-fit so facts wrap cleanly from 5 columns down to 2 without a hard
+     breakpoint, never crushing the values at mid widths. */
+  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+  gap: 0.8rem 1rem;
+  border-top: 1px solid var(--color-divider);
+  padding-top: 0.9rem;
+}
+
+.hero-facts dt {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--color-text-muted);
+}
+
+.hero-facts dd {
+  margin: 0.25rem 0 0;
+  color: #173654;
+  font-weight: 600;
+  font-size: 0.95rem;
+  word-break: break-word;
+}
+
+.hero-status-value {
+  text-transform: capitalize;
+}
+
+/* Phase 12 step 4.7: compact latest-telemetry snapshot (CPU + memory). */
+.hero-telemetry {
+  margin-top: 0.85rem;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem 1.5rem;
+}
+
+.hero-metric-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+
+.hero-metric-label {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--color-text-muted);
+}
+
+.hero-metric-value {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: #173654;
+}
+
+.hero-metric-bar {
+  margin-top: 0.3rem;
+  background: #eaf0f7;
+  border-radius: 999px;
+  height: 6px;
+  overflow: hidden;
+}
+
+.hero-metric-fill {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #2f8fdd 0%, #2bc59a 100%);
+  transition: width 220ms ease;
+}
+
+.hero-metric-fill.metric-hot {
+  background: linear-gradient(90deg, #f97316 0%, var(--state-danger) 100%);
+}
+
+.status-text-running {
+  color: #15803d;
+}
+
+.status-text-degraded {
+  color: #c2410c;
+}
+
+.status-text-stopped {
+  color: #b91c1c;
+}
+
+.status-text-unknown {
+  color: #6b7280;
+}
+
+.hero-ok {
+  color: #15803d;
+}
+
+.hero-bad {
+  color: #b91c1c;
+}
+
+/* --- State treatments --- */
+.hero-healthy {
+  border-left-color: var(--state-ok);
+  background: linear-gradient(180deg, #f4fdf7 0%, #fff 60%);
+}
+
+.hero-healthy .hero-dot {
+  background: var(--state-ok);
+  box-shadow: 0 0 0 6px rgba(34, 197, 94, 0.18);
+}
+
+.hero-degraded {
+  border-left-color: #f97316;
+  background: linear-gradient(180deg, #fff8f1 0%, #fff 60%);
+}
+
+.hero-degraded .hero-dot {
+  background: #f97316;
+  box-shadow: 0 0 0 6px rgba(249, 115, 22, 0.2);
+}
+
+.hero-stopped,
+.hero-failed {
+  border-left-color: #dc2626;
+  background: linear-gradient(180deg, #fff5f5 0%, #fff 55%);
+  box-shadow: 0 10px 26px rgba(185, 28, 28, 0.16);
+}
+
+.hero-stopped .hero-dot,
+.hero-failed .hero-dot {
+  background: #dc2626;
+  box-shadow: 0 0 0 6px rgba(220, 38, 38, 0.22);
+}
+
+.hero-failed .hero-state-word {
+  color: #991b1b;
+}
+
+.hero-recovering {
+  border-left-color: #2563eb;
+  background: linear-gradient(180deg, #f1f7ff 0%, #fff 60%);
+}
+
+.hero-recovering .hero-dot {
+  background: #2563eb;
+  box-shadow: 0 0 0 6px rgba(37, 99, 235, 0.2);
+  animation: hero-pulse 1.4s ease-in-out infinite;
+}
+
+.hero-recovering .hero-state-word {
+  color: #1d4ed8;
+}
+
+/* Resolved is intentionally distinct from a calm healthy baseline so the
+   before/after recovery is obvious during narration. */
+.hero-resolved {
+  border-left-color: #16a34a;
+  background: linear-gradient(180deg, #ecfdf5 0%, #fff 60%);
+  box-shadow: 0 10px 26px rgba(22, 163, 74, 0.16);
+}
+
+.hero-resolved .hero-dot {
+  background: #16a34a;
+  box-shadow: 0 0 0 6px rgba(22, 163, 74, 0.22);
+}
+
+.hero-resolved .hero-state-word {
+  color: #15803d;
+}
+
+@keyframes hero-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.12);
+    opacity: 0.65;
+  }
+}
+
+/* ============================================================================
+   Demo Mode (DEMO_MODE) — judge-facing "Simulate Service Failure" controls (C8).
+   A distinct violet accent marks this as a demo/simulation surface, separate from
+   the live operator controls and incident panels.
+   ============================================================================ */
+.demo-controls-panel {
+  border-left: 4px solid #7c3aed;
+  background: linear-gradient(180deg, #faf5ff 0%, var(--color-surface) 62%);
+  margin-bottom: var(--space-4);
+}
+
+.badge-demo {
+  background: #f3e8ff;
+  color: #6d28d9;
+  border-color: #c4b5fd;
+}
+
+.demo-controls-sub {
+  margin: 0.2rem 0 0.7rem;
+  color: var(--color-text-muted);
+  font-size: 0.85rem;
+}
+
+.demo-controls-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3) var(--space-4);
+  align-items: flex-end;
+}
+
+.demo-device-value {
+  font-weight: 600;
+  color: var(--color-text-body);
+  font-variant-numeric: tabular-nums;
+  padding: 0.3rem 0;
+}
+
+.demo-auto-approve {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  margin: 0.75rem 0 0.2rem;
+  font-size: 0.85rem;
+  color: var(--color-text-body);
+  cursor: pointer;
+}
+
+.demo-auto-approve input {
+  margin-top: 0.15rem;
+  flex-shrink: 0;
+}
+
+.demo-auto-approve em {
+  color: var(--color-text-muted);
+  font-style: normal;
+}
+
+.demo-controls-note {
+  margin: 0.55rem 0 0;
+  padding: 0.45rem 0.6rem;
+  background: #faf5ff;
+  border: 1px dashed #c4b5fd;
+  border-radius: var(--radius-md);
+  font-size: 0.8rem;
+  color: #5b4b8a;
+}
+
+.demo-controls-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  margin-top: 0.85rem;
+}
+
+.demo-button {
+  border-radius: var(--radius-md);
+  padding: 0.5rem 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 120ms ease, opacity 120ms ease;
+}
+
+.demo-button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.demo-button-primary {
+  border: 1px solid #6d28d9;
+  background: #7c3aed;
+  color: #fff;
+}
+
+.demo-button-primary:hover:not(:disabled) {
+  background: #6d28d9;
+}
+
+.demo-button-secondary {
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-text-body);
+}
+
+.demo-button-secondary:hover:not(:disabled) {
+  background: #f1f5f9;
+}
+
+.demo-controls-status {
+  margin: 0.7rem 0 0;
+  font-size: 0.85rem;
+}
+
+.demo-controls-error {
+  color: var(--state-danger-text);
+}
+
+.demo-controls-success {
+  color: var(--state-ok-text);
+}
+
+/* C6 — orchestration layer made visible during investigation. */
+.investigation-progress {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.ai-orchestration {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem 0.4rem;
+}
+
+.ai-orchestration-label {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--color-text-muted);
+  margin-right: 0.15rem;
+}
+
+/* C7 — report actions row + Download Report accent (Copy stays neutral). */
+.summary-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.summary-download-button {
+  color: #1d4ed8;
+  background: #eff6ff;
+  border-color: #bfdbfe;
+}
+
+.summary-download-button:hover {
+  background: #dbeafe;
+  border-color: #93c5fd;
 }

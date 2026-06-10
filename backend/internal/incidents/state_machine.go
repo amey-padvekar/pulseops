@@ -8,6 +8,15 @@ import (
 // ErrInvalidTransition indicates an attempted illegal incident state transition.
 var ErrInvalidTransition = errors.New("invalid incident state transition")
 
+// allowedTransitions is the single source of truth for incident lifecycle moves.
+// All state changes (store mutators, API handlers) funnel through validateTransition,
+// so transition policy lives here rather than being re-decided per handler.
+//
+// Phase 10 recovery-proof boundary: an executing incident may only reach resolved by
+// passing through validating. executing -> resolved is deliberately omitted so a
+// command reporting success can never close an incident without post-remediation
+// health evidence. executing -> failed remains as a failure shortcut for remediation
+// that did not even complete.
 var allowedTransitions = map[IncidentState]map[IncidentState]struct{}{
 	StateHealthy: {
 		StateDetected: {},
@@ -37,7 +46,6 @@ var allowedTransitions = map[IncidentState]map[IncidentState]struct{}{
 	},
 	StateExecuting: {
 		StateValidating: {},
-		StateResolved:   {},
 		StateFailed:     {},
 	},
 	StateValidating: {

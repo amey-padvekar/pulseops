@@ -108,17 +108,19 @@ func BuildRequest(
 	}
 	recentLogs = normalizeLogs(recentLogs, maxLogs)
 
-	actions := opts.AvailableActions
-	if len(actions) == 0 {
-		actions = defaultActionOptions()
-	}
-
-	windowStart, windowEnd := timeWindowForIncident(incident, requestedAt)
-
 	serviceName := strings.TrimSpace(incident.ServiceName)
 	if serviceName == "" {
 		serviceName = strings.TrimSpace(device.ServiceName)
 	}
+
+	actions := opts.AvailableActions
+	if len(actions) == 0 {
+		// Build the catalog with the real service as the restart target so the AI's
+		// recommendation (target = the monitored service) matches the allowed catalog.
+		actions = defaultActionOptions(serviceName)
+	}
+
+	windowStart, windowEnd := timeWindowForIncident(incident, requestedAt)
 
 	recommendedQueries := opts.RecommendedQueries
 	if len(recommendedQueries) == 0 {
@@ -233,11 +235,15 @@ func buildIncidentSummary(incident incidents.Incident, deviceID string, serviceN
 	)
 }
 
-func defaultActionOptions() []ActionOption {
+func defaultActionOptions(serviceName string) []ActionOption {
+	restartTarget := strings.TrimSpace(serviceName)
+	if restartTarget == "" {
+		restartTarget = "service"
+	}
 	return []ActionOption{
 		{
 			ActionID:         "restart_service",
-			Target:           "service",
+			Target:           restartTarget,
 			Description:      "Restart the affected service",
 			AllowedPlatforms: []string{"windows", "linux", "darwin"},
 		},

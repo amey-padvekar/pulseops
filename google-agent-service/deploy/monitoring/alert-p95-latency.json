@@ -1,0 +1,28 @@
+{
+  "displayName": "PulseOps investigate p95 latency > 8s (10m)",
+  "documentation": {
+    "content": "p95 latency of POST /investigate exceeded 8000ms over a 10 minute window. Source: distribution log-based metric investigate_latency_ms extracted from jsonPayload.latency_ms. The request budget is 10s; sustained p95 > 8s indicates enrichment or model-generation pressure. Inspect Cloud Run logs and the investigate_timeout_total metric.",
+    "mimeType": "text/markdown"
+  },
+  "combiner": "OR",
+  "conditions": [
+    {
+      "displayName": "investigate p95 latency > 8000ms for 10m",
+      "conditionThreshold": {
+        "filter": "metric.type=\"logging.googleapis.com/user/investigate_latency_ms\" resource.type=\"cloud_run_revision\"",
+        "comparison": "COMPARISON_GT",
+        "thresholdValue": 8000,
+        "duration": "600s",
+        "aggregations": [
+          {
+            "alignmentPeriod": "60s",
+            "perSeriesAligner": "ALIGN_PERCENTILE_95"
+          }
+        ],
+        "trigger": {
+          "count": 1
+        }
+      }
+    }
+  ]
+}

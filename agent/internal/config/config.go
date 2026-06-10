@@ -18,6 +18,9 @@ const (
 	defaultRequestTimeoutMS     = 5000
 	defaultEnableSimulatedLogs  = true
 	defaultNetworkCheckHost     = "8.8.8.8"
+	// Remediation command polling runs faster than the heartbeat so approved commands
+	// are picked up promptly during a demo without a heavy poll rate.
+	defaultRemediationPollIntervalSec = 5
 )
 
 var allowedAppEnvironments = map[string]struct{}{
@@ -38,6 +41,11 @@ type RuntimeConfig struct {
 	RequestTimeoutMS     int
 	EnableSimulatedLogs  bool
 	NetworkCheckHost     string
+
+	// RemediationPollInterval controls how often the agent polls the backend for
+	// approved remediation commands (Phase 9 step 4.4).
+	RemediationPollInterval    time.Duration
+	RemediationPollIntervalSec int
 }
 
 // Load builds the runtime config from environment variables with safe local defaults.
@@ -53,6 +61,11 @@ func Load() (RuntimeConfig, error) {
 	}
 
 	requestTimeoutMS, err := getPositiveInt("AGENT_REQUEST_TIMEOUT_MS", defaultRequestTimeoutMS)
+	if err != nil {
+		return RuntimeConfig{}, err
+	}
+
+	remediationPollIntervalSec, err := getPositiveInt("AGENT_REMEDIATION_POLL_INTERVAL_SEC", defaultRemediationPollIntervalSec)
 	if err != nil {
 		return RuntimeConfig{}, err
 	}
@@ -73,6 +86,9 @@ func Load() (RuntimeConfig, error) {
 		RequestTimeoutMS:     requestTimeoutMS,
 		EnableSimulatedLogs:  getBool("ENABLE_SIMULATED_LOGS", defaultEnableSimulatedLogs),
 		NetworkCheckHost:     getString("NETWORK_CHECK_HOST", defaultNetworkCheckHost),
+
+		RemediationPollInterval:    time.Duration(remediationPollIntervalSec) * time.Second,
+		RemediationPollIntervalSec: remediationPollIntervalSec,
 	}, nil
 }
 

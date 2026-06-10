@@ -22,6 +22,12 @@ artifacts/
 **/coverage.out
 **/*.test
 
+# Compiled binaries (e.g. `go build` output like backend/server.exe)
+*.exe
+*.dll
+*.so
+*.dylib
+
 # Node / React
 **/node_modules/
 **/build/

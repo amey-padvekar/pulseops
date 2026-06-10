@@ -1,0 +1,11 @@
+# PulseOps ADK agent (Gemini + Elastic MCP). Pins aligned to ADK 2.x.
+google-adk>=2.1.0,<3.0.0
+# Agent Engine's api_server wires up A2A (agent-to-agent) at startup; without
+# a2a-sdk the DEPLOYED container crash-loops on boot
+# (ModuleNotFoundError: No module named 'a2a'). Not needed for local runs.
+a2a-sdk>=0.3.4,<0.4
+google-cloud-aiplatform>=1.60.0
+# Elastic MCP toolset transport (required by google-adk's MCP tools).
+mcp>=1.24,<2
+# Local dev: load google-agent-service/agent/.env for local_runner / mcp_smoke.
+python-dotenv>=1.0,<2

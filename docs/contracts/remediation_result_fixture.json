@@ -1,0 +1,19 @@
+{
+  "incidentId": "INC-1001",
+  "deviceId": "DEV-AGENT-01",
+  "requestId": "rem-12345",
+  "status": "succeeded",
+  "startedAt": "2026-05-23T22:10:06Z",
+  "finishedAt": "2026-05-23T22:10:08Z",
+  "results": [
+    {
+      "actionId": "restart_service",
+      "target": "OpenVPNService",
+      "status": "succeeded",
+      "stdout": "Service restarted successfully",
+      "stderr": "",
+      "exitCode": 0,
+      "durationMs": 1500
+    }
+  ]
+}

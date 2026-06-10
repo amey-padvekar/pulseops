@@ -63,11 +63,12 @@ This section defines the environment variable inventory for agent, backend, and 
 | `ELASTIC_API_KEY` | backend | Yes (Phase 5+) | Yes | `<set-in-local-.env-only>` | Secret. Never commit real value. |
 | `AGENT_BUILDER_ENDPOINT` | backend | Yes (Phase 6+) | No | `https://your-agent-builder-endpoint.example.com` | Agent Builder workflow endpoint. |
 | `AGENT_BUILDER_AUTH` | backend | Yes (Phase 6+) | Yes | `<set-in-local-.env-only>` | Secret auth token. Never commit real value. |
-| `GEMINI_PROJECT_OR_PROFILE` | backend | Yes (Phase 6+) | No | `your-project-or-profile` | Profile/project reference used by orchestration layer. |
+| `DEMO_MODE` | backend | No | No | `false` | Gates the additive `/demo/*` "Simulate Service Failure" endpoints (judge demo). Off in normal deployments. |
 | `VITE_APP_ENV` | frontend | Yes | No | `development` | Frontend runtime mode marker. |
 | `VITE_LOG_LEVEL` | frontend | No | No | `info` | Frontend log verbosity marker. |
 | `VITE_API_BASE_URL` | frontend | Yes | No | `http://localhost:8080` | Backend API base URL consumed by UI. |
 | `VITE_WS_URL` | frontend | No | No | `ws://localhost:8080/ws` | WebSocket endpoint for live updates. |
+| `VITE_DEMO_MODE` | frontend | No | No | `false` | Shows the judge-facing "Simulate Service Failure" panel. Set `true` in the demo/hosted build; requires backend `DEMO_MODE=true`. |
 
 ### Secret handling boundaries
 

@@ -1,0 +1,14 @@
+{
+  "incidentId": "INC-1001",
+  "deviceId": "DEV-AGENT-01",
+  "approvedBy": "demo.operator",
+  "approvedAt": "2026-05-23T22:10:00Z",
+  "actions": [
+    {
+      "actionId": "restart_service",
+      "target": "OpenVPNService"
+    }
+  ],
+  "dispatchedAt": "2026-05-23T22:10:05Z",
+  "requestId": "rem-12345"
+}

@@ -1,0 +1,48 @@
+# Declarative Cloud Run manifest for the official Elastic MCP server (Workstream 1).
+#
+# This is an alternative to deploy.ps1 for teams who prefer GitOps-style config.
+# Apply with:
+#   gcloud run services replace deploy/elastic-mcp/service.yaml \
+#     --region us-central1 --project pulseops-agent
+#
+# IMPORTANT:
+#  - `gcloud run services replace` does NOT add public (allUsers) access, so the
+#    service stays private by default. Do NOT add an allUsers run.invoker binding.
+#  - Replace the ES_URL value and create the Secret Manager secret first
+#    (see README.md). The secret name/key below must match.
+#  - The HTTP listener has no auth of its own — Cloud Run IAM is the only gate.
+#  - Pin the image to a digest/version for a reproducible submission.
+apiVersion: serving.knative.dev/v1
+kind: Service
+metadata:
+  name: pulseops-elastic-mcp
+  labels:
+    cloud.googleapis.com/location: us-central1
+  annotations:
+    # IAM-gated. For stricter isolation switch to "internal" (requires the caller,
+    # e.g. Agent Engine, to egress through the same VPC).
+    run.googleapis.com/ingress: all
+spec:
+  template:
+    metadata:
+      annotations:
+        autoscaling.knative.dev/minScale: "0"
+        autoscaling.knative.dev/maxScale: "2"
+    spec:
+      containers:
+        - image: docker.elastic.co/mcp/elasticsearch:latest
+          args: ["http"]
+          ports:
+            - containerPort: 8080
+          env:
+            - name: ES_URL
+              value: "https://your-deployment.es.asia-south1.gcp.elastic.cloud:443"
+            - name: ES_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: elastic-mcp-es-api-key
+                  key: latest
+          resources:
+            limits:
+              cpu: "1"
+              memory: 512Mi

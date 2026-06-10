@@ -6,6 +6,90 @@
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+
+  /* ---- PulseOps design tokens (Phase 12 step 4.9) ----
+     One source of truth for the dashboard's visual language: spacing, radius,
+     shadows, typography, and the semantic state palette used for every lifecycle
+     colour (healthy / in-progress / success / failure / AI / neutral). */
+
+  /* Spacing scale */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.25rem;
+  --space-6: 1.5rem;
+
+  /* Radius */
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-pill: 999px;
+
+  /* Elevation */
+  --shadow-card: 0 6px 18px rgba(17, 39, 67, 0.08);
+  --shadow-raised: 0 10px 24px rgba(9, 18, 33, 0.18);
+
+  /* Typography scale */
+  --text-label: 0.72rem;
+  --text-sm: 0.8rem;
+  --text-body: 0.9rem;
+  --text-h2: 1.1rem;
+  --tracking-label: 0.06em;
+
+  /* Text colours */
+  --color-text: #173654;
+  --color-heading: #12304d;
+  --color-text-strong: #1e293b;
+  --color-text-body: #334155;
+  --color-text-muted: #5f7893;
+  --color-text-subtle: #64748b;
+
+  /* Surfaces & borders */
+  --color-surface: #fff;
+  --color-border: #d4dde7;
+  --color-divider: #e5edf5;
+
+  /* Semantic state palette — accent (border/dot), text, soft bg, soft border,
+     and badge trio (bg/fg/border) for each lifecycle colour. */
+  --state-neutral: #94a3b8;
+  --badge-neutral-bg: #f3f4f6;
+  --badge-neutral-fg: #374151;
+  --badge-neutral-border: #d1d5db;
+
+  --state-info: #2563eb;
+  --state-info-strong: #1d4ed8;
+  --state-info-soft: #f1f7ff;
+
+  --state-ai: #6366f1;
+  --state-ai-strong: #4338ca;
+  --state-ai-soft: #eef2ff;
+  --state-ai-border: #c7d2fe;
+
+  --state-warn: #f59e0b;
+  --state-warn-text: #b45309;
+  --state-warn-soft: #fffbeb;
+  --state-warn-border: #fde68a;
+  --badge-warn-bg: #ffedd5;
+  --badge-warn-fg: #c2410c;
+  --badge-warn-border: #fdba74;
+
+  --state-ok: #16a34a;
+  --state-ok-text: #15803d;
+  --state-ok-soft: #ecfdf5;
+  --state-ok-border: #bbf7d0;
+  --badge-ok-bg: #dcfce7;
+  --badge-ok-fg: #15803d;
+  --badge-ok-border: #86efac;
+
+  --state-danger: #dc2626;
+  --state-danger-text: #b91c1c;
+  --state-danger-soft: #fff5f5;
+  --state-danger-border: #fecaca;
+  --badge-danger-bg: #fee2e2;
+  --badge-danger-fg: #b91c1c;
+  --badge-danger-border: #fca5a5;
 }
 
 * {

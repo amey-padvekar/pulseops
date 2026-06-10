@@ -44,32 +44,40 @@ func IncidentsHandler(s *incidents.Store) http.HandlerFunc {
 	}
 }
 
-// IncidentByIDHandler returns an http.HandlerFunc for GET /incidents/{incidentId}.
+// IncidentByIDHandler serves GET /incidents/{incidentId} (fetch one) and
+// DELETE /incidents/{incidentId} (clear/dismiss an incident from the dashboard).
 func IncidentByIDHandler(s *incidents.Store) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodGet {
-			w.WriteHeader(http.StatusMethodNotAllowed)
-			return
-		}
-
 		incidentID := strings.TrimSpace(strings.TrimPrefix(r.URL.Path, "/incidents/"))
 		if incidentID == "" {
-			w.Header().Set("Content-Type", "application/json")
-			w.WriteHeader(http.StatusNotFound)
-			_ = json.NewEncoder(w).Encode(map[string]string{"error": "incident not found"})
+			writeIncidentNotFound(w)
 			return
 		}
 
-		incident, ok := s.GetByID(incidentID)
-		if !ok {
+		switch r.Method {
+		case http.MethodGet:
+			incident, ok := s.GetByID(incidentID)
+			if !ok {
+				writeIncidentNotFound(w)
+				return
+			}
 			w.Header().Set("Content-Type", "application/json")
-			w.WriteHeader(http.StatusNotFound)
-			_ = json.NewEncoder(w).Encode(map[string]string{"error": "incident not found"})
-			return
+			w.WriteHeader(http.StatusOK)
+			_ = json.NewEncoder(w).Encode(incident)
+		case http.MethodDelete:
+			if !s.Delete(incidentID) {
+				writeIncidentNotFound(w)
+				return
+			}
+			w.WriteHeader(http.StatusNoContent)
+		default:
+			w.WriteHeader(http.StatusMethodNotAllowed)
 		}
-
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
-		_ = json.NewEncoder(w).Encode(incident)
 	}
+}
+
+func writeIncidentNotFound(w http.ResponseWriter) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusNotFound)
+	_ = json.NewEncoder(w).Encode(map[string]string{"error": "incident not found"})
 }

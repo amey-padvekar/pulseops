@@ -1,0 +1,16 @@
+{
+  "probableCause": "service stopped",
+  "confidence": 0.91,
+  "recommendedActions": [
+    {
+      "actionId": "restart_service",
+      "target": "OpenVPNService",
+      "reason": "Service is stopped while heartbeat remains present"
+    }
+  ],
+  "validationSteps": [
+    "Check OpenVPNService status is running",
+    "Confirm device heartbeat and network connectivity remain healthy"
+  ],
+  "summary": "The monitored VPN service appears stopped on a reachable host with active heartbeat. Restarting the service is the safest first remediation."
+}

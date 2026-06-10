@@ -8,7 +8,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/certainelf/pulseops/backend/internal/agentbuilder"
 	"github.com/certainelf/pulseops/backend/internal/api"
 	"github.com/certainelf/pulseops/backend/internal/elastic"
 	"github.com/certainelf/pulseops/backend/internal/incidents"
@@ -18,9 +17,89 @@ import (
 
 func newTestTelemetryHandler(deviceStore *store.DeviceStore, incidentStore *incidents.Store) http.HandlerFunc {
 	var elasticCfg *elastic.Config
-	var agentClient agentbuilder.Client
-	var agentCfg *agentbuilder.Config
-	return makeTelemetryHandler(deviceStore, incidentStore, ws.NewHub(), nil, elasticCfg, agentClient, agentCfg)
+	return makeTelemetryHandler(deviceStore, incidentStore, ws.NewHub(), nil, elasticCfg, nil, nil)
+}
+
+func TestLoadConfigDemoMode(t *testing.T) {
+	cases := []struct {
+		value string
+		want  bool
+	}{
+		{"true", true},
+		{"1", true},
+		{"yes", true},
+		{"TRUE", true},
+		{"  Yes  ", true},
+		{"false", false},
+		{"0", false},
+		{"no", false},
+		{"", false},
+		{"nonsense", false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.value, func(t *testing.T) {
+			t.Setenv("DEMO_MODE", tc.value)
+			if got := loadConfig().DemoMode; got != tc.want {
+				t.Fatalf("loadConfig().DemoMode for %q = %t, want %t", tc.value, got, tc.want)
+			}
+		})
+	}
+}
+
+func TestIngestTelemetrySampleUpsertsAndOpensIncident(t *testing.T) {
+	deviceStore := store.NewDeviceStore()
+	incidentStore := incidents.NewStore()
+
+	// stopped + heartbeat is the detector trigger, so the shared pipeline must both upsert
+	// the device and open exactly one incident — the path /demo/incident reuses in Part B.
+	stored, ok := ingestTelemetrySample(
+		store.DeviceState{
+			DeviceID:         "DEV-DEMO-1",
+			ServiceName:      "Spooler",
+			ServiceStatus:    "stopped",
+			NetworkReachable: true,
+			RecentLogs:       []string{"the print spooler service terminated unexpectedly"},
+			Heartbeat:        true,
+		},
+		deviceStore, incidentStore, ws.NewHub(), nil, nil, nil, nil,
+	)
+
+	if !ok {
+		t.Fatal("ingestTelemetrySample ok = false, want true")
+	}
+	if stored.DeviceID != "DEV-DEMO-1" || stored.LastSeenAt.IsZero() {
+		t.Fatalf("returned state not stamped: %+v", stored)
+	}
+	if _, found := deviceStore.Get("DEV-DEMO-1"); !found {
+		t.Fatal("device was not upserted into the device store")
+	}
+	if got := len(incidentStore.List(incidents.IncidentFilter{DeviceID: "DEV-DEMO-1"})); got != 1 {
+		t.Fatalf("incident count for DEV-DEMO-1 = %d, want 1", got)
+	}
+}
+
+func TestIngestTelemetrySampleHealthyOpensNoIncident(t *testing.T) {
+	deviceStore := store.NewDeviceStore()
+	incidentStore := incidents.NewStore()
+
+	// A running service must NOT open an incident — confirms the demo's healthy validation
+	// samples (serviceStatus="running") will not spuriously create new incidents (Part B4).
+	if _, ok := ingestTelemetrySample(
+		store.DeviceState{
+			DeviceID:         "DEV-DEMO-2",
+			ServiceName:      "Spooler",
+			ServiceStatus:    "running",
+			NetworkReachable: true,
+			RecentLogs:       []string{"service healthy"},
+			Heartbeat:        true,
+		},
+		deviceStore, incidentStore, ws.NewHub(), nil, nil, nil, nil,
+	); !ok {
+		t.Fatal("ingestTelemetrySample ok = false, want true")
+	}
+	if got := len(incidentStore.List(incidents.IncidentFilter{DeviceID: "DEV-DEMO-2"})); got != 0 {
+		t.Fatalf("incident count for healthy device = %d, want 0", got)
+	}
 }
 
 func TestTelemetryHandlerRejectsWrongMethod(t *testing.T) {
@@ -234,7 +313,7 @@ func TestTelemetryToIncidentEndpoints_EndToEnd(t *testing.T) {
 		t.Fatal("expected created incident to remain active")
 	}
 	if detail.Reason != "service stopped while heartbeat is present" {
-		t.Fatalf("reason = %q", detail.Reason)
+		t.Fatalf("reason = %q, want %q", detail.Reason, "service stopped while heartbeat is present")
 	}
 }
 
@@ -275,10 +354,11 @@ func TestTelemetryHandler_RepeatedFailureRefreshesIncidentTimestamps(t *testing.
 	if second.IncidentID != first.IncidentID {
 		t.Fatalf("expected same incident ID, got %q and %q", first.IncidentID, second.IncidentID)
 	}
+
 	if !second.LastSeenAt.After(first.LastSeenAt) {
 		t.Fatalf("expected LastSeenAt to advance: first=%v second=%v", first.LastSeenAt, second.LastSeenAt)
 	}
 	if !second.UpdatedAt.After(first.UpdatedAt) {
 		t.Fatalf("expected UpdatedAt to advance: first=%v second=%v", first.UpdatedAt, second.UpdatedAt)
 	}
-}
+	}

@@ -76,9 +76,13 @@ Pass when:
 ## Phase 10: Recovery Validation
 
 Pass when:
-- [ ] Health is confirmed by fresh telemetry cycles.
-- [ ] Incident transitions to resolved only after validation passes.
-- [ ] Failure to recover transitions to failed/unhealthy state.
+- [x] Health is confirmed by fresh telemetry cycles.
+- [x] Incident transitions to resolved only after validation passes.
+- [x] Failure to recover transitions to failed/unhealthy state.
+
+Verified by `backend/cmd/server/validation_acceptance_test.go` and the
+`internal/incidents` validation/state-machine tests; frontend per
+[PHASE_10_FRONTEND_CHECKLIST.md](PHASE_10_FRONTEND_CHECKLIST.md).
 
 ## Phase 11: Incident Summary
 
@@ -92,3 +96,6 @@ Pass when:
 - [ ] Full flow completes under 3 minutes in rehearsal.
 - [ ] One fallback scenario is tested end-to-end.
 - [ ] Submission artifacts are complete and linked.
+- [ ] Dashboard UI quality gate passes — every item in
+      [docs/PHASE_12_UI_VERIFICATION.md](PHASE_12_UI_VERIFICATION.md) is checked at the
+      capture viewport.

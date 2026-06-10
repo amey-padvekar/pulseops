@@ -19,6 +19,7 @@ type AgentBuilderRequest struct {
 	TelemetrySnapshot   TelemetrySnapshot   `json:"telemetrySnapshot"`
 	RecentLogs          []string            `json:"recentLogs"`
 	IncidentSummary     string              `json:"incidentSummary"`
+	EvidenceSummary     string              `json:"evidenceSummary,omitempty"`
 	AvailableActions    []ActionOption      `json:"availableActions"`
 	ElasticContextHints ElasticContextHints `json:"elasticContextHints"`
 }

@@ -8,12 +8,12 @@ Contest deadline: June 11, 2026 at 2:00 PM PT
 
 ## 1) Phase objective
 
-Produce a structured AI investigation result for an active incident by combining Agent Builder orchestration, Elastic MCP-backed operational retrieval, and Gemini reasoning.
+Produce a structured AI investigation result for an active incident by combining Agent Builder orchestration implemented through Google Agent ADK, Elastic MCP-backed operational retrieval, and Gemini reasoning.
 
 Phase 6 established the handoff contract from backend to Agent Builder. Phase 7 turns that handoff into a useful investigation result: probable cause, recommended safe remediation actions, validation steps, and a concise operator-facing summary.
 
 At the end of Phase 7:
-- Agent Builder uses Elastic MCP to retrieve meaningful telemetry, incident, and log context
+- Agent Builder (invoked via Google Agent ADK) uses Elastic MCP to retrieve meaningful telemetry, incident, and log context
 - Gemini-compatible reasoning produces a structured investigation result
 - backend parses and stores the result on the incident
 - dashboard can show probable cause, confidence, recommended actions, and validation steps
@@ -101,17 +101,26 @@ Output:
 Goal: make the workflow reliably request the right Elastic MCP context and return structured output.
 
 Tasks:
-1. Define the investigation task contract inside `backend/internal/agentbuilder` docs or config.
-2. Instruct the workflow to:
+1. Define the ADK-facing investigation task contract inside `backend/internal/agentbuilder` docs or config.
+2. Implement an Agent ADK integration boundary (for example `backend/internal/agentbuilder/adk_client.go`) that:
+- builds an ADK request from incident + context hints
+- calls the Agent Builder workflow through ADK
+- returns raw JSON response + trace identifiers
+3. Instruct the workflow to:
 - query Elastic MCP for relevant telemetry, incident history, and endpoint logs
 - reason only from provided/queried evidence
 - return JSON matching `InvestigationResult`
-3. Include explicit rules in the prompt/spec:
+4. Include explicit rules in the prompt/spec:
 - do not return shell commands
 - do not recommend actions outside the provided catalog
 - produce concise, operator-facing language
-4. Include decision heuristics for the MVP incident type:
+5. Include decision heuristics for the MVP incident type:
 - stopped monitored service while heartbeat is present
+6. Add ADK request metadata for traceability:
+- `incident_id`
+- `device_id`
+- `request_id`
+- optional idempotency token for retries
 
 Output:
 - a stable prompt/workflow contract that reduces output drift.
@@ -120,7 +129,7 @@ Output:
 
 ### 4.3 Elastic MCP retrieval plan
 
-Goal: specify exactly what operational context Agent Builder should retrieve from Elastic.
+Goal: specify exactly what operational context the ADK-orchestrated Agent Builder workflow should retrieve from Elastic.
 
 Tasks:
 1. Reuse `ElasticContextHints` from Phase 6.
@@ -134,7 +143,7 @@ Tasks:
 4. Summarize the retrieved evidence into a compact investigation context before passing to reasoning.
 
 Output:
-- Agent Builder uses Elastic MCP for concrete, bounded context retrieval.
+- Agent Builder via ADK uses Elastic MCP for concrete, bounded context retrieval.
 
 ---
 
@@ -187,11 +196,12 @@ Tasks:
 1. Decide the trigger for investigation:
 - when incident enters `investigating`
 - or when operator explicitly asks for investigation in MVP debug mode
-2. Call Agent Builder client with structured request.
-3. Receive workflow result.
-4. Parse and validate structured response.
-5. Store validated result on the incident.
-6. Broadcast incident update to frontend.
+2. Create/extend Agent Builder client interface so implementation can be swapped (`live ADK`, `local stub`).
+3. Call the ADK-backed Agent Builder client with structured request.
+4. Receive workflow result.
+5. Parse and validate structured response.
+6. Store validated result on the incident.
+7. Broadcast incident update to frontend.
 
 Output:
 - active incident can accumulate AI diagnosis and remediation recommendation automatically.
@@ -203,13 +213,14 @@ Output:
 Goal: keep the demo stable when cloud calls or MCP retrieval are slow or unavailable.
 
 Tasks:
-1. Define investigation timeout budget.
+1. Define ADK call timeout budget (connect + total investigation timeout).
 2. If investigation times out:
 - store failure metadata or fallback status
 - keep incident actionable
 - show understandable UI state such as `investigation pending` or `investigation unavailable`
-3. Provide local stub/fallback result path for development/demo backup.
-4. Log timeout cause and request identifiers.
+3. Provide local stub/fallback result path for development/demo backup when ADK or MCP is unavailable.
+4. Add retry policy with strict cap (for transient ADK transport failures only).
+5. Log timeout cause and request identifiers.
 
 Output:
 - investigation failures are visible and survivable, not catastrophic.
@@ -225,7 +236,7 @@ Tasks:
 - `request_id`
 - `incident_id`
 - `device_id`
-- `agent_builder_trace_id`
+- `agent_builder_trace_id` (or ADK operation id)
 - `investigation_status`
 2. Log a redacted summary of:
 - retrieved evidence counts
@@ -283,9 +294,10 @@ Goal: lock behavior before approval/execution phases depend on it.
 Tasks:
 1. Add parser tests for valid output.
 2. Add parser tests for invalid action IDs and malformed JSON.
-3. Add storage tests verifying incident enrichment.
-4. Add timeout/fallback tests using fake Agent Builder client.
-5. Add frontend tests where practical or at minimum build validation for investigation rendering.
+3. Add ADK client adapter tests (request mapping, timeout propagation, trace id extraction).
+4. Add storage tests verifying incident enrichment.
+5. Add timeout/fallback tests using fake Agent Builder client.
+6. Add frontend tests where practical or at minimum build validation for investigation rendering.
 
 Output:
 - confidence that AI investigation output remains parseable and safe.
@@ -297,7 +309,7 @@ Output:
 Goal: produce repeatable evidence that an active incident gets an AI diagnosis and remediation recommendation.
 
 Manual/Script sequence:
-1. Start backend, agent, frontend, and required Elastic/Agent Builder dependencies.
+1. Start backend, agent, frontend, and required Elastic/Agent Builder/ADK dependencies.
 2. Trigger stopped-service incident.
 3. Wait for incident to enter `investigating`.
 4. Trigger or observe investigation workflow completion.
@@ -308,6 +320,7 @@ Manual/Script sequence:
 - dashboard shows diagnosis and recommendation
 6. Capture evidence under `artifacts/phase7-smoke/<timestamp>/`:
 - backend logs
+- ADK request metadata and response snapshot (redacted)
 - investigation request/response snapshot (redacted)
 - incident API snapshot
 - optional dashboard screenshot
@@ -322,17 +335,19 @@ Output:
 Build in this order to keep behavior testable and low-risk:
 
 1. `backend/internal/agentbuilder/investigation_model.go`
-2. `backend/internal/agentbuilder/parser.go`
-3. Add action whitelist validation helpers
-4. Extend incident model/store to hold AI investigation fields
-5. Wire backend orchestration for investigation result storage
-6. Add timeout and fallback behavior
-7. Update frontend incident/investigation rendering
-8. Add parser/storage/fallback tests
-9. Run smoke-check and collect evidence
+2. `backend/internal/agentbuilder/adk_client.go` and integration interface
+3. `backend/internal/agentbuilder/parser.go`
+4. Add action whitelist validation helpers
+5. Extend incident model/store to hold AI investigation fields
+6. Wire backend orchestration for ADK investigation result storage
+7. Add timeout and fallback behavior
+8. Update frontend incident/investigation rendering
+9. Add parser/storage/fallback tests
+10. Run smoke-check and collect evidence
 
 Why this order:
 - schema and parser first prevent unsafe output drift
+- ADK client boundary early prevents transport concerns from leaking into incident domain logic
 - storage comes before UI so data flow is stable
 - timeout/fallback handling is critical before demo-facing rendering
 - frontend follows once backend contracts are settled
@@ -363,19 +378,32 @@ Why this order:
 
 ## 7) Environment variables reference (Phase 7)
 
-Phase 7 may reuse Phase 6 Agent Builder configuration.
+Phase 7 reuses the existing Elastic and Agent Builder configuration already consumed by the codebase.
 
-Optional additions if needed:
-- `AGENT_BUILDER_INVESTIGATION_TIMEOUT_MS`
+Elastic:
+- `ELASTIC_ENDPOINT`
+- `ELASTIC_API_KEY`
+- `ELASTIC_INDEX_TELEMETRY`
+- `ELASTIC_INDEX_INCIDENTS`
+- `ELASTIC_INDEX_LOGS`
+- `ELASTIC_ENABLED`
+
+Agent Builder:
+- `AGENT_BUILDER_ENDPOINT`
+- `AGENT_BUILDER_AUTH`
+- `AGENT_BUILDER_TIMEOUT_MS`
+- `AGENT_BUILDER_ENABLED`
+
+Additional Phase 7 runtime switches actually used when that path is enabled:
+- `AGENT_BUILDER_ADK_ENDPOINT`
 - `AGENT_BUILDER_FALLBACK_MODE`
-
-Prefer reusing existing config unless a separate timeout/fallback knob is truly needed.
 
 ---
 
 ## 8) New files to create
 
 - `backend/internal/agentbuilder/investigation_model.go`
+- `backend/internal/agentbuilder/adk_client.go`
 - `backend/internal/agentbuilder/parser.go`
 - `backend/internal/agentbuilder/*_test.go`
 - optional frontend investigation component files if UI is split

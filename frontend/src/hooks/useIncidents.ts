@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 
 import { useApiBaseUrl, useWsBaseUrl } from './useApiBaseUrl'
 import type { Incident, WsEventEnvelope } from '../types/dashboard'
@@ -6,6 +6,13 @@ import type { Incident, WsEventEnvelope } from '../types/dashboard'
 type UseIncidentsResult = {
   incidents: Incident[]
   activeIncident: Incident | null
+  // latestIncident is the most recently updated incident for the device, active or not.
+  // It lets the UI keep showing a just-resolved/failed incident's recovery outcome after
+  // `active` flips false (Phase 10 closure UX), since activeIncident becomes null then.
+  latestIncident: Incident | null
+  // dismissIncident clears (deletes) an incident from the backend and removes it from the
+  // list — used to clear stale or failed-to-diagnose incidents from the dashboard.
+  dismissIncident: (incidentId: string) => Promise<void>
   connected: boolean
 }
 
@@ -59,7 +66,9 @@ export function useIncidents(deviceId?: string): UseIncidentsResult {
 
     const fetchIncidents = async () => {
       try {
-        const response = await fetch(`${apiBaseUrl}/incidents?active=true`)
+        // Fetch ALL incidents (active + resolved/failed history) so the list panel
+        // can show the full incident history for the device, not just active ones.
+        const response = await fetch(`${apiBaseUrl}/incidents`)
         if (!response.ok) {
           return
         }
@@ -166,11 +175,33 @@ export function useIncidents(deviceId?: string): UseIncidentsResult {
     }
   }, [apiBaseUrl, deviceId, wsBaseUrl])
 
+  const dismissIncident = useCallback(
+    async (incidentId: string) => {
+      try {
+        const response = await fetch(
+          `${apiBaseUrl}/incidents/${encodeURIComponent(incidentId)}`,
+          { method: 'DELETE' },
+        )
+        // Treat 404 as success — it's already gone — so the row clears either way.
+        if (response.ok || response.status === 404) {
+          setIncidents((previous) => previous.filter((item) => item.incidentId !== incidentId))
+        }
+      } catch {
+        // Best effort; a transient failure leaves the incident in place to retry.
+      }
+    },
+    [apiBaseUrl],
+  )
+
   const activeIncident = incidents.find((incident) => incident.active) ?? null
+  // incidents is kept sorted by updatedAt descending, so the first entry is the latest.
+  const latestIncident = incidents[0] ?? null
 
   return {
     incidents,
     activeIncident,
+    latestIncident,
+    dismissIncident,
     connected,
   }
 }

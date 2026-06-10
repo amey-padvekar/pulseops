@@ -83,7 +83,7 @@ Tasks:
 - `approvedAt`
 - `approvalNote` optional for future use
 - `approvedActions` or equivalent approved remediation snapshot
-2. Preserve the original AI recommendation alongside approved action selection.
+2. Preserve the original AI recommendation alongside approved action selection. The recommendation snapshot is stored on the incident as `RecommendedActions` with fields `actionId`, `target`, `description`. Note the agent envelope's `recommendedActions[].reason` is persisted into `description`; do not expect a `reason` key on the incident DTO.
 3. Add timestamps/update semantics so approval updates `UpdatedAt`.
 4. Keep approval data separate from execution result data that will arrive in Phase 9.
 
@@ -96,22 +96,28 @@ Output:
 
 Goal: make the approval gate explicit and impossible to bypass accidentally.
 
+Phase 7 / Google Agent Service handoff (required for compatibility):
+- The Google Agent Service plan keeps PulseOps incident lifecycle semantics out of scope, so the agent service never moves an incident into an approvable state. The completed investigation is persisted with `investigationStatus=completed` but the incident remains in `investigating`.
+- The backend therefore owns the bridge: when an investigation completes with a real (non-fallback) recommendation attached, the backend transitions the incident `investigating` -> `awaiting_approval`. The existing state machine already permits this transition.
+- A fallback/stub investigation result (empty `recommendedActions`) must NOT trigger this transition; the incident stays in `investigating` because there is nothing approvable.
+
 Tasks:
-1. Define allowed transition:
-- `awaiting_approval` -> `approved`
+1. Define allowed transitions:
+- `investigating` -> `awaiting_approval` (performed by the backend on a completed, non-empty investigation result)
+- `awaiting_approval` -> `approved` (performed by the approval endpoint)
 2. Reject approval for incidents already in:
 - `approved`
 - `executing`
 - `validating`
 - `resolved`
 - `failed`
-3. Decide behavior for incidents still in `investigating`:
-- either reject approval until recommendation exists
-- or require investigation completion before the button is enabled
+3. Reject approval for incidents still in `investigating`:
+- approval requires `awaiting_approval`, which is only reached once a concrete recommendation exists
+- the dashboard approve control stays disabled until the incident is `awaiting_approval`
 4. Centralize transition validation in incident service/store logic rather than only in HTTP handlers.
 
 Output:
-- backend owns one enforceable rule set for approval eligibility.
+- backend owns one enforceable rule set for approval eligibility, including the Phase 7 -> Phase 8 handoff transition.
 
 ---
 
@@ -328,7 +334,7 @@ Output:
 Implement Phase 8 in this order:
 
 1. Extend incident model with approval metadata and approved remediation snapshot.
-2. Implement approval transition rules in incident service/store layer.
+2. Implement approval transition rules in incident service/store layer, including the backend `investigating` -> `awaiting_approval` handoff triggered by a completed, non-empty investigation result.
 3. Add approval request/response DTOs and backend endpoint.
 4. Add queued remediation command model.
 5. Extend REST/websocket incident payloads.
@@ -346,7 +352,7 @@ Expected backend touch points:
 - `backend/internal/incidents/` for incident model and state transitions
 - `backend/internal/remediation/` for queued command model or approval service
 - `backend/internal/api/` for approval handler and incident response DTO updates
-- `backend/cmd/server/main.go` for route wiring
+- `backend/cmd/server/main.go` for route wiring and the investigation-completion handoff that transitions `investigating` -> `awaiting_approval`
 - `backend/internal/store/` if incident persistence currently lives there
 
 Expected frontend touch points:
@@ -368,6 +374,7 @@ Expected docs/scripts touch points:
 
 2. Do not allow approval before recommendation exists.
 - The operator must approve a concrete recommendation, not an empty incident shell.
+- A fallback/stub investigation (empty `recommendedActions`) must not move the incident to `awaiting_approval`, so it can never become approvable.
 
 3. Do not let the client invent executable content.
 - Client may identify approved action IDs, but command details must be derived from trusted backend recommendation data.

@@ -11,6 +11,7 @@ import (
 	"time"
 
 	es8 "github.com/elastic/go-elasticsearch/v8"
+	esapi "github.com/elastic/go-elasticsearch/v8/esapi"
 )
 
 type Client struct {
@@ -163,4 +164,47 @@ func (c *Client) IndexLogEvent(
 
 func DefaultTimestamp() time.Time {
 	return time.Now().UTC()
+}
+
+// Search executes a search query against the provided indices and returns the raw response body.
+func (c *Client) Search(ctx context.Context, indices []string, query any, size int) ([]byte, error) {
+	if !c.Enabled() {
+		return nil, nil
+	}
+
+	body, err := json.Marshal(query)
+	if err != nil {
+		return nil, fmt.Errorf("marshal elastic search query: %w", err)
+	}
+
+	opts := []func(*esapi.SearchRequest){
+		c.es.Search.WithContext(ctx),
+		c.es.Search.WithBody(bytes.NewReader(body)),
+	}
+
+	if len(indices) > 0 {
+		opts = append(opts, c.es.Search.WithIndex(indices...))
+	}
+	if size > 0 {
+		opts = append(opts, c.es.Search.WithSize(size))
+	}
+
+	res, err := c.es.Search(opts...)
+	if err != nil {
+		return nil, fmt.Errorf("elastic search request failed: %w", err)
+	}
+	defer res.Body.Close()
+
+	if res.IsError() {
+		respBody, _ := io.ReadAll(res.Body)
+		return nil, fmt.Errorf("elastic search error [%s]: %s", res.Status(), string(respBody))
+	}
+
+	respBody, err := io.ReadAll(res.Body)
+	if err != nil {
+		return nil, fmt.Errorf("read elastic search response: %w", err)
+	}
+
+	// Return raw bytes for higher-level parsing by callers.
+	return respBody, nil
 }
