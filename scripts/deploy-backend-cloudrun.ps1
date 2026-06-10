@@ -83,6 +83,8 @@ $envVars = @(
     "AGENT_ENGINE_RESOURCE=$AgentEngineResource",
     "GOOGLE_CLOUD_PROJECT=$Project",
     "GOOGLE_CLOUD_LOCATION=$EngineLocation",
+    # Judge-facing "Simulate Service Failure" panel — additive, gated by DEMO_MODE.
+    "DEMO_MODE=true",
     "CORS_ALLOWED_ORIGIN=$FrontendOrigin",
     "FRONTEND_BASE_URL=$FrontendOrigin"
 ) -join ','

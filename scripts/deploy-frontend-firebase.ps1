@@ -36,7 +36,9 @@ $frontendDir = Join-Path $repoRoot 'frontend'
 $envProd = @(
     "VITE_APP_ENV=production",
     "VITE_API_BASE_URL=$($BackendUrl.TrimEnd('/'))",
-    "VITE_AGENT_DEVICE_ID=$DeviceId"
+    "VITE_AGENT_DEVICE_ID=$DeviceId",
+    # Judge-facing "Simulate Service Failure" panel (must match backend DEMO_MODE=true).
+    "VITE_DEMO_MODE=true"
 ) -join "`n"
 $envPath = Join-Path $frontendDir '.env.production'
 Set-Content -Path $envPath -Value $envProd -Encoding utf8
