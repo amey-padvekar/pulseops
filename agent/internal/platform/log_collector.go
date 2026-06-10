@@ -25,7 +25,11 @@ func (c *WindowsEventLogCollector) CollectRecent(ctx context.Context, serviceNam
 	escapedService := escapePowerShellSingleQuoted(serviceName)
 
 	script := fmt.Sprintf(
-		`$service='%s'; $limit=%d; $events=Get-WinEvent -LogName System -MaxEvents 200 -ErrorAction SilentlyContinue | Where-Object { $_.Message -like "*${service}*" -or $_.ProviderName -like "*${service}*" } | Select-Object -First $limit; if (-not $events) { return }; $events | ForEach-Object { $msg=($_.Message -replace "[\r\n]+", " "); "{0}|{1}|{2}|{3}|{4}" -f $_.TimeCreated.ToUniversalTime().ToString("o"), $_.ProviderName, $_.Id, $_.LevelDisplayName, $msg }`,
+		// NOTE: keep this script free of double quotes — it is passed as a single -Command
+		// string argument, and embedded double quotes get mangled by the Windows arg/quote
+		// handling, producing a parse error (exit 1) before the script ever runs. Build the
+		// wildcard with single-quoted concatenation instead of "*${service}*".
+		`$ErrorActionPreference='SilentlyContinue'; $service='%s'; $limit=%d; try { $pat='*'+$service+'*'; $events=Get-WinEvent -LogName System -MaxEvents 200 -ErrorAction SilentlyContinue | Where-Object { ($_.Message -and $_.Message -like $pat) -or ($_.ProviderName -and $_.ProviderName -like $pat) } | Select-Object -First $limit; foreach ($e in $events) { $ts = if ($e.TimeCreated) { $e.TimeCreated.ToUniversalTime().ToString('o') } else { '' }; $msg = if ($e.Message) { ($e.Message -replace '[\r\n]+', ' ') } else { '' }; '{0}|{1}|{2}|{3}|{4}' -f $ts, $e.ProviderName, $e.Id, $e.LevelDisplayName, $msg } } catch { }; exit 0`,
 		escapedService,
 		limit,
 	)

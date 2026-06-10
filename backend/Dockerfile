@@ -1,6 +1,6 @@
 # Multi-stage build for the PulseOps backend (Cloud Run).
 # Build context is the backend/ directory (go.mod at its root).
-FROM golang:1.23 AS build
+FROM golang:1.25 AS build
 WORKDIR /src
 COPY go.mod go.sum ./
 RUN go mod download

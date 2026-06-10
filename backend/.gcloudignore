@@ -1,0 +1,18 @@
+# Keep secrets and local build artifacts out of the Cloud Build upload.
+# `gcloud run deploy --source` uses this file (the root .gitignore is NOT applied to a subdir).
+
+# Secrets — never ship the local .env (real ELASTIC_API_KEY etc.).
+.env
+.env.*
+!.env.example
+
+# Local build output (Windows binary; useless in the Linux image, and bloats the context).
+*.exe
+
+# Go caches / coverage.
+*.test
+coverage.out
+
+# VCS / editor noise.
+.git/
+.gitignore

@@ -36,6 +36,11 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+# PowerShell 7.4+ makes native commands honor $ErrorActionPreference='Stop', which turns
+# gcloud's EXPECTED non-zero exits (e.g. `secrets describe` on a not-yet-created secret)
+# into terminating errors and aborts the script. This script checks $LASTEXITCODE itself,
+# so opt out. (Harmless no-op on Windows PowerShell 5.1, where the variable is unused.)
+$PSNativeCommandUseErrorActionPreference = $false
 
 function Invoke-Gcloud {
     param([Parameter(Mandatory = $true)][string[]]$GcloudArgs)
@@ -55,9 +60,12 @@ Invoke-Gcloud @('services', 'enable', 'run.googleapis.com', 'cloudbuild.googleap
     'artifactregistry.googleapis.com', 'secretmanager.googleapis.com',
     'aiplatform.googleapis.com', '--project', $Project)
 
-# 2) Secret for the Elastic WRITE key.
-& gcloud secrets describe $SecretName --project $Project 2>$null | Out-Null
-if ($LASTEXITCODE -ne 0) {
+# 2) Secret for the Elastic WRITE key. Probe with `secrets list` (always exits 0) instead of
+# `secrets describe` (returns NOT_FOUND on a missing secret, which gcloud's PowerShell wrapper
+# raises as a terminating NativeCommandError before this script can handle the exit code).
+$existingSecrets = @(& gcloud secrets list --project $Project --format='value(name)' 2>$null)
+$secretExists = [bool]($existingSecrets | Where-Object { $_ -like "*$SecretName" })
+if (-not $secretExists) {
     Invoke-Gcloud @('secrets', 'create', $SecretName, '--replication-policy=automatic', '--project', $Project)
 }
 Invoke-Gcloud @('secrets', 'versions', 'add', $SecretName, "--data-file=$EsApiKeyFile", '--project', $Project)

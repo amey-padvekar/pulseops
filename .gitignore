@@ -9,6 +9,10 @@ Thumbs.db
 .env.*
 !.env.example
 
+# Local secret/key files for deploy (never commit — e.g. es-write-key.txt for Cloud Run)
+*-key.txt
+*.key
+
 # Logs
 *.log
 logs/
@@ -53,3 +57,6 @@ venv/
 # Misc
 *.tmp
 *.swp
+
+# Firebase deploy cache
+.firebase/

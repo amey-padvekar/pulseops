@@ -26,10 +26,14 @@ const (
 	maxRecentLogSize    = 5
 	defaultLogLimit     = 10
 	serviceCheckTimeout = 700 * time.Millisecond
-	logCollectTimeout   = 600 * time.Millisecond
 	networkCheckTimeout = 600 * time.Millisecond
-	// CIM-based metrics collection on Windows commonly exceeds 1s.
-	metricsCheckTimeout = 3 * time.Second
+	// logCollectTimeout and metricsCheckTimeout each spawn powershell.exe, whose cold start
+	// alone is ~1s on Windows, plus Get-WinEvent / CIM queries that add several seconds. The
+	// old budgets (600ms / 3s) were below the real cost, so exec.CommandContext killed
+	// powershell mid-run -- reported as "exit status 1" -- and collection never succeeded.
+	// Keep these generous (still under the 10s heartbeat interval in normal runs).
+	logCollectTimeout   = 6 * time.Second
+	metricsCheckTimeout = 8 * time.Second
 )
 
 var defaultRetryBackoffs = []time.Duration{250 * time.Millisecond, 750 * time.Millisecond}
