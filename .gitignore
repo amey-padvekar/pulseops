@@ -41,6 +41,15 @@ artifacts/
 **/yarn-error.log*
 **/pnpm-debug.log*
 
+# Python
+**/__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+**/*.egg-info/
+.venv/
+venv/
+
 # Misc
 *.tmp
 *.swp
