@@ -1,1070 +1,345 @@
-# AI Auto-Healing Incident Response Agent
+# PulseOps AI
 
-## Prerequisites (Phase 1)
+<p align="center">
+  <img src="./docs/logo.png" alt="PulseOps AI" width="180"/>
+</p>
 
-Install these tools before first run.
+<h1 align="center">PulseOps AI</h1>
 
-| Tool | Required Version | Check Command |
-|---|---|---|
-| Git | 2.40+ | `git --version` |
-| Go | 1.22+ | `go version` |
-| Node.js | 22 LTS+ | `node --version` |
-| npm | 10+ | `npm --version` |
-| PowerShell | 5.1+ (Windows) or 7+ | `$PSVersionTable.PSVersion` |
+<p align="center">
+Transforming Observability into Autonomous Action
+</p>
 
-## First-Time Clone and Run
+<p align="center">
+An autonomous incident-response agent built with Gemini, Google Cloud Agent Builder, and Elastic MCP.
+</p>
 
-Run from PowerShell.
-
-1. Clone repository
-
-```powershell
-git clone <your-repo-url>
-cd pulseops
-```
-
-2. Create local env files from examples
-
-```powershell
-Copy-Item .\agent\.env.example .\agent\.env
-Copy-Item .\backend\.env.example .\backend\.env
-Copy-Item .\frontend\.env.example .\frontend\.env
-```
-
-3. Install dependencies
-
-```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\install-deps.ps1
-```
-
-4. Verify baseline startup
-
-```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\smoke-check.ps1
-```
-
-5. Start components
-
-```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\run-backend.ps1
-```
-
-```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\run-agent.ps1
-```
-
-```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\run-frontend.ps1
-```
-
-## Phase 1 Quickstart (Local)
-
-Use PowerShell from the repository root.
-
-1. Install dependencies
-
-```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\install-deps.ps1
-```
-
-2. Start components (separate terminals)
-
-```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\run-backend.ps1
-```
-
-```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\run-agent.ps1
-```
-
-```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\run-frontend.ps1
-```
-
-Optional: launch all three in new terminals
-
-```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\run-all.ps1
-```
-
-3. Run smoke check
-
-```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\smoke-check.ps1
-```
-
-Expected smoke check result:
-- agent builds
-- backend builds
-- frontend builds
-- backend `/healthz` returns `{"status":"ok"}`
-- agent emits telemetry and backend logs include `telemetry received`
-- evidence logs are saved to `artifacts\\phase2-smoke\\<timestamp>\\`
-
-## Phase 2 Failure Rehearsal
-
-Run this after smoke-check to verify the demo failure trigger path.
-
-1. Start backend and agent in separate terminals:
-
-```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\run-backend.ps1
-```
-
-```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\run-agent.ps1
-```
-
-2. Stop the monitored service manually (administrator shell):
-
-```powershell
-Stop-Service -Name <MONITORED_SERVICE_NAME> -Force
-```
-
-3. Confirm:
-- agent process remains running
-- backend continues logging telemetry
-- service status in telemetry reflects the stop/failure condition
-
-## Platform Assumptions (Demo)
-
-- Primary demo path is Windows.
-- Scripts in `scripts/` are PowerShell-first for reproducible Windows setup.
-- Linux support can be added later, but Phase 1 acceptance is validated on Windows.
-
-## Troubleshooting (Phase 1)
-
-1. `go` command not found
-- Ensure Go is installed and available in `PATH`.
-
-2. `npm` or `node` command not found
-- Install Node.js LTS and reopen terminal.
-
-3. Frontend port conflict (`5173` already in use)
-- Stop existing process on 5173 or run frontend with a different port.
-
-4. Backend health check fails during smoke-check
-- Confirm no process is already bound to `8080`.
-- Run `powershell -ExecutionPolicy Bypass -File .\scripts\run-backend.ps1` and verify `http://localhost:8080/healthz` returns status `ok`.
-
-5. PowerShell execution policy blocks script execution
-- Run scripts using `-ExecutionPolicy Bypass` as shown above.
-
-6. `.env` values not applied
-- Verify `.env` files exist under `agent/`, `backend/`, and `frontend/`.
-- Confirm variable names match the examples exactly.
+---
 
 ## Overview
 
-An autonomous AI-powered IT operations and incident remediation system built for the Google Cloud Rapid Agent Hackathon.
+PulseOps AI is an autonomous incident-response platform that detects operational failures, investigates telemetry and logs, determines root causes, generates remediation plans, executes approved actions, validates recovery, and produces incident summaries.
 
-The system continuously monitors endpoint health, analyzes telemetry and logs, detects operational issues, identifies probable root causes using Gemini, recommends remediation actions, and optionally executes approved fixes automatically.
-
-The project focuses on:
-
-* AI-driven incident response
-* Endpoint monitoring
-* Auto-remediation
-* Real-time telemetry
-* Human-in-the-loop automation
-* Enterprise operations workflows
+Unlike traditional monitoring solutions that only generate alerts, PulseOps AI performs the complete incident-response workflow.
 
 ---
 
-# Problem Statement
+## Problem Statement
 
-Modern IT teams spend significant time manually investigating and resolving repetitive operational incidents such as:
+Modern observability platforms excel at detecting incidents, but human operators are still responsible for:
 
-* VPN failures
-* Service crashes
-* Failed deployments
-* High CPU or memory usage
-* Endpoint instability
-* Connectivity issues
-* Log analysis and root cause identification
+* Investigating telemetry and logs
+* Identifying root causes
+* Creating remediation plans
+* Executing fixes
+* Validating recovery
 
-This leads to:
+This process is repetitive, time-consuming, and often delays incident resolution.
 
-* Increased downtime
-* Alert fatigue
-* Slow incident response
-* Operational inefficiency
-* Large support queues
-
-The goal of this project is to create an AI agent capable of:
-
-1. Detecting operational issues
-2. Investigating root causes
-3. Suggesting remediation
-4. Executing approved fixes
-5. Verifying recovery
-6. Generating incident summaries
+PulseOps AI bridges this gap by transforming observability into action.
 
 ---
 
-# Core Idea
+## Key Features
 
-Instead of building a chatbot, the project demonstrates:
-
-> Autonomous AI systems that take operational actions.
-
-The AI agent behaves like an intelligent operations engineer.
-
----
-
-# Hackathon Alignment
-
-This project aligns strongly with the Google Cloud Rapid Agent Hackathon judging criteria.
-
-## Technological Implementation
-
-* WebSocket orchestration
-* Endpoint agents
-* Telemetry pipeline
-* Gemini reasoning
-* Auto-remediation workflows
-* Real-time dashboards
-
-## Design
-
-* Clear incident workflow
-* Live remediation visualization
-* Human approval flows
-* Operational dashboard
-
-## Potential Impact
-
-* Real enterprise use case
-* Reduces operational workload
-* Improves response times
-* Reduces downtime
-
-## Quality of Idea
-
-* Autonomous incident remediation
-* AI-driven operational reasoning
-* Multi-step workflows
-* Real-time orchestration
+* Real-time endpoint telemetry monitoring
+* Autonomous incident detection
+* Gemini-powered root cause analysis
+* Elastic MCP integration
+* Human approval workflow
+* Automated remediation execution
+* Recovery validation
+* Incident timelines and summaries
+* Real-time dashboard updates using WebSockets
+* Live endpoint monitoring
+* Interactive incident simulation mode
 
 ---
 
-# Recommended Hackathon Scope
+## System Architecture
 
-Keep the project intentionally focused.
+```mermaid
+flowchart LR
 
-## Recommended MVP
+    Endpoint["Windows Endpoint Agent"]
+    Backend["PulseOps Backend<br/>Cloud Run"]
+    Elastic["Elastic Serverless"]
+    MCP["Elastic MCP Server"]
+    AgentEngine["Vertex AI Agent Engine"]
+    Gemini["Gemini"]
+    Dashboard["Dashboard<br/>Firebase Hosting"]
 
-Build:
+    Endpoint -->|Telemetry & Logs| Backend
 
-* One endpoint agent
-* One backend service
-* One dashboard
-* One remediation workflow
+    Backend -->|Index Events| Elastic
 
-Do NOT attempt:
+    Backend -->|Investigate Incident| AgentEngine
 
-* Large-scale distributed systems
-* Offline endpoint recovery
-* Enterprise-grade security hardening
-* Complex peer-to-peer networking
-* Full ITSM integrations
+    AgentEngine --> Gemini
 
----
+    AgentEngine --> MCP
 
-# Recommended Demo Scenario
+    MCP -->|Search Telemetry & Logs| Elastic
 
-## AI Auto-Healing VPN Incident
+    Dashboard <-->|REST API + WebSockets| Backend
 
-This is the recommended primary demo because it is:
-
-* Easy to understand
-* Easy to demonstrate
-* Visually clear
-* Real-world relevant
-* Technically manageable
-
----
-
-# Demo Flow
-
-## Step 1 — Healthy State
-
-Dashboard shows:
-
-* VPN connected
-* Device healthy
-* Services running
-
-Everything appears green.
-
----
-
-## Step 2 — Simulated Failure
-
-Manually stop the VPN service:
-
-```powershell
-Stop-Service OpenVPNService
-```
-
-Alternative failures:
-
-* Stop backend service
-* Simulate DNS failure
-* Kill a monitored process
-* Generate fake error logs
-
-Important:
-The endpoint itself remains online.
-Only the monitored service becomes unhealthy.
-
----
-
-## Step 3 — Monitoring Agent Detects Issue
-
-The endpoint agent sends telemetry:
-
-```json
-{
-  "vpnConnected": false,
-  "serviceStatus": "stopped",
-  "networkReachable": true
-}
+    Backend -->|Remediation Commands| Endpoint
 ```
 
 ---
 
-## Step 4 — AI Investigation
+## Incident Response Workflow
 
-Gemini receives:
+```mermaid
+flowchart TD
 
-* Service state
-* Telemetry
-* Recent logs
-* Historical context
+    A["Service Failure Detected"]
+    B["Incident Created"]
+    C["Elastic MCP Investigation"]
+    D["Gemini Root Cause Analysis"]
+    E["Generate Remediation Plan"]
+    F["Await Human Approval"]
+    G["Execute Remediation"]
+    H["Validate Recovery"]
+    I["Incident Resolved"]
 
-AI determines probable cause.
-
-Example:
-
-> VPN connectivity failure likely caused by stopped OpenVPN service.
-
----
-
-## Step 5 — AI Suggests Remediation
-
-Dashboard displays:
-
-* Restart VPN service
-* Flush DNS cache
-* Reconnect VPN
-
----
-
-## Step 6 — Human Approval
-
-Admin clicks:
-
-"Approve Remediation"
-
-This is important because enterprise systems usually require human oversight.
-
----
-
-## Step 7 — AI Executes Fix
-
-Example commands:
-
-```powershell
-Restart-Service OpenVPNService
-ipconfig /flushdns
+    A --> B
+    B --> C
+    C --> D
+    D --> E
+    E --> F
+    F --> G
+    G --> H
+    H --> I
 ```
 
 ---
 
-## Step 8 — Recovery Validation
+## Agent Workflow
 
-The endpoint agent reports:
+```mermaid
+flowchart LR
 
-```json
-{
-  "vpnConnected": true,
-  "serviceStatus": "running"
-}
-```
+    Incident["Incident"]
+    ADK["Google Agent Builder / ADK"]
+    MCP["Elastic MCP"]
+    Gemini["Gemini"]
+    Plan["Remediation Plan"]
 
-Dashboard returns to healthy state.
+    Incident --> ADK
 
----
+    ADK --> MCP
+    MCP --> ADK
 
-## Step 9 — Incident Summary
+    ADK --> Gemini
+    Gemini --> ADK
 
-AI generates a final report.
-
-Example:
-
-```text
-Incident Summary
-
-Root Cause:
-VPN service unexpectedly stopped.
-
-Actions Taken:
-- Restarted VPN service
-- Flushed DNS cache
-- Revalidated connectivity
-
-Result:
-VPN connectivity restored successfully.
+    ADK --> Plan
 ```
 
 ---
 
-# Alternative Demo Scenarios
+## Deployment Architecture
 
-## Deployment Rollback Agent
+```mermaid
+flowchart TD
 
-Scenario:
+    User["Judge / Operator"]
 
-* New deployment causes failures
-* Error rates spike
-* AI identifies issue
-* AI rolls back deployment
-* Service recovers
+    Frontend["Firebase Hosting"]
 
----
+    Backend["Cloud Run"]
 
-## Auto-Healing Service Monitor
+    AgentEngine["Vertex AI Agent Engine"]
 
-Scenario:
+    Elastic["Elastic Serverless"]
 
-* Backend service crashes
-* AI detects unhealthy state
-* AI restarts service
-* AI validates recovery
+    Endpoint["Windows VM"]
 
----
+    User --> Frontend
 
-## AI Log Investigator
+    Frontend --> Backend
 
-Scenario:
+    Backend --> AgentEngine
 
-* Application fails
-* AI analyzes logs
-* AI identifies probable root cause
-* AI suggests remediation
+    Backend --> Elastic
 
----
+    Endpoint --> Backend
 
-# System Architecture
-
-## High-Level Architecture
-
-```text
-Endpoint Agent
-      ↓
-Telemetry + Logs
-      ↓
-Backend / Telemetry Layer
-      ↓
-Elastic
-      ↓
-Elastic MCP Server
-      ↓
-Google Cloud Agent Builder
-      ↓
-Gemini Reasoning + Workflow Orchestration
-      ↓
-Remediation Workflow
-      ↓
-Endpoint Executes Fix
+    Backend --> Endpoint
 ```
 
 ---
 
-# Google Cloud Agent Builder Workflow
+## Technology Stack
 
-## Why Agent Builder Is Critical
-
-The Google Cloud Rapid Agent Hackathon explicitly requires meaningful usage of:
+### Google Cloud
 
 * Gemini
 * Google Cloud Agent Builder
-* Partner MCP servers
+* Google ADK
+* Vertex AI Agent Engine
+* Cloud Run
+* Firebase Hosting
+* Compute Engine
+* Secret Manager
+* Cloud Build
 
-This project therefore uses Google Cloud Agent Builder as the primary orchestration and reasoning layer instead of calling Gemini directly from the backend.
+### Elastic
 
-Agent Builder is responsible for:
+* Elastic Serverless
+* Elasticsearch
+* Kibana
+* Elastic MCP Server
 
-* Workflow orchestration
-* Incident investigation
-* Tool usage
-* MCP interactions
-* Remediation planning
-* Incident summarization
+### Backend
 
----
+* Go
+* REST APIs
+* WebSockets
 
-# Agent Builder Responsibilities
+### Frontend
 
-The Agent Builder workflow acts as the autonomous operations coordinator.
-
-It receives:
-
-* telemetry
-* incidents
-* logs
-* endpoint health information
-
-and performs:
-
-* investigation
-* reasoning
-* remediation planning
-* tool interactions
-* validation workflows
+* React
+* TypeScript
+* Vite
 
 ---
 
-# Agent Builder Operational Flow
+## Screenshots
 
-## Step 1 — Incident Trigger
+### Dashboard
 
-The endpoint agent detects a service failure and forwards telemetry to the backend.
+![Dashboard](docs/screenshots/dashboard.png)
 
-Example:
+### Incident Investigation
 
-```json
-{
-  "device": "LAPTOP-22",
-  "serviceStatus": "stopped",
-  "vpnConnected": false,
-  "severity": "high"
-}
+![Investigation](docs/screenshots/investigation.png)
+
+### Remediation Workflow
+
+![Remediation](docs/screenshots/remediation.png)
+
+---
+
+## Demo
+
+### Hosted Application
+
+https://pulseops-agent.web.app
+
+### Demo Video
+
+https://youtube.com/watch?v=YOUR_VIDEO_ID
+
+---
+
+## Running Locally
+
+### Prerequisites
+
+* Go 1.24+
+* Node.js 22+
+* Google Cloud Project
+* Elastic Deployment
+* Vertex AI Agent Engine
+
+### Clone Repository
+
+```bash
+git clone https://github.com/your-org/pulseops-ai.git
+
+cd pulseops-ai
 ```
 
-The backend forwards the operational context into the Agent Builder workflow.
+### Backend
 
----
+```bash
+cd backend
 
-## Step 2 — Agent Builder Invokes Elastic MCP Tools
+go mod download
 
-The Agent Builder agent uses Elastic MCP tools to:
-
-* search logs
-* retrieve recent incidents
-* correlate telemetry
-* identify repeated failures
-* analyze historical patterns
-
-Example MCP-style queries:
-
-```text
-Search logs for:
-"VPN service terminated unexpectedly"
+go run ./cmd/server
 ```
 
-```text
-Retrieve all incidents for device LAPTOP-22 in the last 15 minutes
+### Frontend
+
+```bash
+cd frontend
+
+npm install
+
+npm run dev
 ```
 
 ---
 
-## Step 3 — Gemini Operational Reasoning
+## Deployment
 
-Gemini analyzes:
-
-* logs
-* telemetry
-* incident history
-* operational patterns
-
-Gemini determines probable root cause.
-
-Example:
-
-> VPN connectivity failure likely caused by stopped OpenVPN service after recent update.
-
----
-
-## Step 4 — Remediation Planning
-
-Agent Builder generates a remediation workflow.
-
-Example remediation plan:
-
-1. Restart VPN service
-2. Flush DNS cache
-3. Validate connectivity
-4. Confirm service health
-
----
-
-## Step 5 — Human Approval
-
-The remediation plan is displayed on the dashboard.
-
-Admin approves remediation before execution.
-
-This demonstrates:
-
-* human-in-the-loop safety
-* enterprise governance
-* controlled autonomous operations
-
----
-
-## Step 6 — Remediation Execution
-
-The backend executes remediation commands on the endpoint.
-
-Example:
+### Backend
 
 ```powershell
-Restart-Service OpenVPNService
-ipconfig /flushdns
+pwsh -File .\scripts\deploy-backend-cloudrun.ps1
+```
+
+### Frontend
+
+```powershell
+pwsh -File .\scripts\deploy-frontend-firebase.ps1
+```
+
+### Endpoint Agent
+
+```powershell
+pwsh -File .\scripts\create-agent-vm.ps1
 ```
 
 ---
 
-## Step 7 — Recovery Validation
+## Demo Mode
 
-The endpoint agent sends updated telemetry.
-
-Agent Builder validates:
-
-* service recovery
-* connectivity restoration
-* healthy operational state
-
----
-
-## Step 8 — AI Incident Summary
-
-Agent Builder generates a final incident report.
-
-Example:
+PulseOps AI includes an incident simulation mode that allows users to launch incidents on demand and observe the complete lifecycle:
 
 ```text
-Incident Summary
-
-Root Cause:
-VPN service unexpectedly stopped after update.
-
-Actions Taken:
-- Restarted VPN service
-- Flushed DNS cache
-- Revalidated connectivity
-
-Result:
-VPN connectivity restored successfully.
+Detect
+→ Investigate
+→ Analyze
+→ Approve
+→ Execute
+→ Validate
+→ Resolve
 ```
 
----
-
-# Why This Architecture Matters
-
-This architecture demonstrates:
-
-* Agentic AI workflows
-* MCP-based tool usage
-* Multi-step reasoning
-* Operational orchestration
-* Autonomous remediation
-* Enterprise AI operations
-
-The project is therefore not simply:
-
-> "a monitoring dashboard"
-
-Instead, it becomes:
-
-> an autonomous operational incident-response agent powered by Google Cloud Agent Builder and Elastic MCP workflows.
+This enables reliable demonstrations while preserving the real Gemini, Agent Builder, and Elastic MCP workflow.
 
 ---
 
-# Architecture Responsibilities
+## Future Work
 
-## Endpoint Agent
-
-Responsible for:
-
-* heartbeat monitoring
-* telemetry collection
-* service health checks
-* command execution
-* log streaming
-
----
-
-## Backend / Telemetry Layer
-
-Responsible for:
-
-* maintaining WebSocket sessions
-* storing telemetry
-* exposing remediation APIs
-* forwarding operational context to Agent Builder
-* command dispatching
-
----
-
-## Elastic + Elastic MCP
-
-Responsible for:
-
-* operational log storage
-* telemetry search
-* incident retrieval
-* observability dashboards
-* operational context retrieval
-
----
-
-## Google Cloud Agent Builder
-
-Responsible for:
-
-* orchestration
-* reasoning
-* workflow planning
-* MCP interactions
-* remediation planning
-* summary generation
-
----
-
-## Gemini
-
-Responsible for:
-
-* root-cause analysis
-* operational reasoning
-* remediation recommendations
-* incident summarization
-
----
-
-# Components
-
-## 1. Endpoint Agent
-
-Responsibilities:
-
-* Heartbeat monitoring
-* Collect telemetry
-* Stream logs
-* Execute commands
-* Report health status
-
-Suggested implementation:
-
-* .NET Background Service
-* Go daemon/service
-
-Recommended telemetry:
-
-* CPU usage
-* Memory usage
-* Service status
-* VPN connectivity
-* Process health
-* Error logs
-
----
-
-## 2. Backend Orchestrator
-
-Responsibilities:
-
-* Maintain device sessions
-* Receive telemetry
-* Trigger AI analysis
-* Manage workflows
-* Send remediation commands
-* Store incident state
-
-Suggested stack:
-
-* ASP.NET Core
-* Go backend
-* Redis
-* WebSockets
-
----
-
-## 3. AI Reasoning Layer
-
-Responsibilities:
-
-* Analyze logs
-* Correlate telemetry
-* Identify root causes
-* Suggest remediation
-* Generate summaries
-
-Suggested tools:
-
-* Gemini
-* Google Cloud AI services
-
----
-
-## 4. Dashboard
-
-Responsibilities:
-
-* Show live health state
-* Display incidents
-* Visualize remediation
-* Approve actions
-* Show summaries
-
-Suggested frontend:
-
-* React
-* Tailwind CSS
-* Real-time WebSocket updates
-
----
-
-# Recommended Features
-
-## Essential Features
-
-Build these first:
-
-* Endpoint heartbeat
-* Live telemetry
-* WebSocket communication
-* Log collection
-* AI reasoning
-* Remediation commands
-* Approval workflow
-* Incident summary
-
----
-
-## Nice-To-Have Features
-
-Optional additions:
-
-* Incident timeline
-* Deployment awareness
-* Historical incidents
-* AI confidence score
-* Metrics dashboard
-* Multi-endpoint support
-* Alert prioritization
-
----
-
-# Suggested Technology Stack
-
-## Backend
-
-* ASP.NET Core
-* Go
-* Redis
-* WebSockets
-
-## Frontend
-
-* React
-* Tailwind CSS
-* Recharts
-
-## AI
-
-* Gemini
-* Google Cloud AI APIs
-
-## Observability
-
-* Elastic (recommended partner track)
-
----
-
-# Why Elastic Is Recommended
-
-Elastic is likely the strongest partner track because it provides:
-
-* Logs
-* Dashboards
-* Observability
-* Search
-* Incident visualization
-
-This naturally complements:
-
-* AI incident analysis
-* Root cause identification
-* Operational workflows
-
----
-
-# Important Design Principles
-
-## 1. Keep The Endpoint Alive
-
-Do NOT attempt true offline recovery.
-
-The endpoint should remain reachable.
-Only the monitored service/process should fail.
-
----
-
-## 2. Focus On One Excellent Workflow
-
-Do NOT build:
-
-* Generic AI platform
-* Massive automation suite
-* Complex distributed systems
-
-Instead:
-
-* Build one polished workflow extremely well.
-
----
-
-## 3. Optimize For Demo Quality
-
-The demo matters more than scale.
-
-Judges will remember:
-
-> The AI detected the issue and fixed it automatically.
-
----
-
-# Suggested Final Demo Script
-
-## Opening
-
-"This is an autonomous AI operations agent that monitors endpoint health and automatically remediates operational incidents."
-
----
-
-## Trigger Failure
-
-Stop a monitored service.
-
-Dashboard turns red.
-
----
-
-## AI Investigation
-
-Show:
-
-* telemetry
-* logs
-* AI reasoning
-
----
-
-## AI Recommendation
-
-AI proposes remediation.
-
----
-
-## Approval
-
-Admin approves remediation.
-
----
-
-## Execution
-
-AI executes fix.
-
-Service recovers.
-
-Dashboard returns green.
-
----
-
-## Incident Summary
-
-AI generates final operational report.
-
----
-
-# What Makes This Project Strong
-
-This project demonstrates:
-
-* Agentic AI
-* Multi-step reasoning
-* Autonomous workflows
-* Tool usage
-* Real-world enterprise value
-* Operational automation
-* Human-in-the-loop safety
-* Technical sophistication
-
-Unlike generic chatbots, this project performs real actions and produces measurable operational outcomes.
-
----
-
-# Future Expansion Ideas
-
-Potential post-hackathon improvements:
-
-* Multi-agent orchestration
+* Multi-endpoint fleet management
+* Kubernetes remediation
 * Security incident response
 * Deployment rollback automation
-* Fleet-wide monitoring
-* Predictive failure analysis
-* Autonomous patch management
-* Distributed device coordination
-* AI governance workflows
+* Predictive incident prevention
+* Multi-agent workflows
 
 ---
 
-# Final Recommendation
+## License
 
-The best strategy for the hackathon is:
+MIT License
 
-* Keep the scope focused
-* Build one polished remediation workflow
-* Prioritize demo quality
-* Emphasize autonomy and reasoning
-* Demonstrate real operational value
+See the LICENSE file for details.
 
-The strongest single workflow is likely:
+---
 
-> AI Auto-Healing VPN / Service Incident Response
+## Acknowledgements
 
-because it is:
+Built for the Google Cloud Rapid Agent Hackathon using:
 
-* simple
-* realistic
-* visually clear
-* enterprise-relevant
-* technically achievable
-* highly demoable
-* aligned with judging criteria.
-
-
-
-I updated the documentation to include a complete:
-
-* Google Cloud Agent Builder workflow
-* Elastic MCP integration flow
-* revised compliant architecture
-* Agent Builder responsibilities
-* operational orchestration sequence
-* MCP query examples
-* remediation workflow lifecycle
-* enterprise reasoning flow
-
-The documentation now aligns much more closely with the hackathon rules and clearly positions:
-
-* Agent Builder as the orchestration brain
-* Elastic MCP as the operational context layer
-* Gemini as the reasoning engine
-
-instead of making the backend directly call Gemini.
+* Google Gemini
+* Google Cloud Agent Builder
+* Google ADK
+* Vertex AI Agent Engine
+* Elastic MCP
+* Elastic Serverless
