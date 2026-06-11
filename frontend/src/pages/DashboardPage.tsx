@@ -166,26 +166,25 @@ function FlowStage({ step, label, flow, className, flashKey, children }: FlowSta
 }
 
 export function DashboardPage() {
-  const defaultAgentDeviceId = import.meta.env.VITE_AGENT_DEVICE_ID || 'DEV-AGENT-01'
   const { activeAgents, activeAgentDevices } = useAgentStats()
-  const [selectedDeviceId, setSelectedDeviceId] = useState(defaultAgentDeviceId)
+  // No hardcoded default device: the dropdown lists only devices actually reporting
+  // telemetry (activeAgentDevices), since a configured default agent may not exist.
+  // Start with nothing selected; the effect below auto-selects the first real device.
+  const [selectedDeviceId, setSelectedDeviceId] = useState('')
 
   const selectableDevices = useMemo(() => {
     const unique = new Set<string>()
-    unique.add(defaultAgentDeviceId)
     for (const deviceId of activeAgentDevices) {
       unique.add(deviceId)
     }
     return Array.from(unique)
-  }, [activeAgentDevices, defaultAgentDeviceId])
+  }, [activeAgentDevices])
 
   useEffect(() => {
-    if (selectableDevices.length === 0) {
-      return
-    }
-
+    // Follow the live device set: auto-select the first reporting device when nothing
+    // valid is selected, and clear the selection if the chosen device stops reporting.
     if (!selectableDevices.includes(selectedDeviceId)) {
-      setSelectedDeviceId(selectableDevices[0])
+      setSelectedDeviceId(selectableDevices[0] ?? '')
     }
   }, [selectableDevices, selectedDeviceId])
 
@@ -262,6 +261,11 @@ export function DashboardPage() {
             value={selectedDeviceId}
             onChange={(event) => setSelectedDeviceId(event.target.value)}
           >
+            {selectedDeviceId === '' ? (
+              <option value="" disabled>
+                {selectableDevices.length === 0 ? 'No active devices' : 'Select a device…'}
+              </option>
+            ) : null}
             {selectableDevices.map((deviceId) => (
               <option key={deviceId} value={deviceId}>
                 {deviceId}
