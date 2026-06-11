@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 
 import { AiInvestigationPanel } from '../components/AiInvestigationPanel'
@@ -13,7 +13,8 @@ import { useAgentStats } from '../hooks/useAgentStats'
 import { useDeviceState } from '../hooks/useDeviceState'
 import { useFlashOnChange } from '../hooks/useFlashOnChange'
 import { useIncidents } from '../hooks/useIncidents'
-import type { Incident } from '../types/dashboard'
+import { useNow } from '../hooks/useNow'
+import type { Incident, IncidentState } from '../types/dashboard'
 
 // DashboardMood is the page-level macro-state that lets a viewer read the whole
 // story at a glance: a calm baseline, an urgent active incident, an in-progress
@@ -129,6 +130,42 @@ function incidentStateBadge(incident: Incident): string {
   }
 }
 
+// activeStageLabel narrates what the system is doing right now; paired with a live
+// elapsed timer it makes the timeline read as self-driving rather than static.
+function activeStageLabel(state: IncidentState): string {
+  switch (state) {
+    case 'detected':
+      return 'Detected — starting investigation'
+    case 'investigating':
+      return 'AI investigating'
+    case 'awaiting_approval':
+      return 'Awaiting your approval'
+    case 'approved':
+      return 'Approved — preparing remediation'
+    case 'executing':
+      return 'Executing remediation'
+    case 'validating':
+      return 'Validating recovery'
+    default:
+      return state
+  }
+}
+
+// Pre-approval states read as urgent (red); post-approval recovery reads as in-progress (blue).
+function activeStageTone(state: IncidentState): 'danger' | 'info' {
+  return state === 'approved' || state === 'executing' || state === 'validating' ? 'info' : 'danger'
+}
+
+function formatElapsed(ms: number): string {
+  if (!Number.isFinite(ms) || ms < 0) {
+    return '0:00'
+  }
+  const totalSeconds = Math.floor(ms / 1000)
+  const minutes = Math.floor(totalSeconds / 60)
+  const seconds = totalSeconds % 60
+  return `${minutes}:${String(seconds).padStart(2, '0')}`
+}
+
 // FlowStage wraps each panel in a numbered, labeled stage so the dashboard reads
 // top-to-bottom / left-to-right as the demo narrative: detect -> investigate ->
 // remediate -> validate -> summarize. The label sits above the panel and never
@@ -143,13 +180,15 @@ type FlowStageProps = {
   flow: string
   className?: string
   flashKey?: string
+  id?: string
   children: ReactNode
 }
 
-function FlowStage({ step, label, flow, className, flashKey, children }: FlowStageProps) {
+function FlowStage({ step, label, flow, className, flashKey, id, children }: FlowStageProps) {
   const updated = useFlashOnChange(flashKey)
   return (
     <section
+      id={id}
       className={`flow-stage ${className ?? ''} ${updated ? 'is-updated' : ''}`}
       aria-label={label}
     >
@@ -223,6 +262,25 @@ export function DashboardPage() {
   const mood = deriveMood(activeIncident, displayIncident)
   const moodCopy = MOOD_COPY[mood]
 
+  // Live elapsed timer for an in-flight incident, so the timeline reads as self-driving.
+  const now = useNow(1000, Boolean(activeIncident))
+  const activeElapsed = formatElapsed(
+    activeIncident ? now - Date.parse(activeIncident.detectedAt) : Number.NaN,
+  )
+
+  // When a *new* incident becomes active, bring the timeline into view so judges watch
+  // it advance (the Simulate control sits above the fold). Only fires on id change.
+  const lastFocusedIncidentRef = useRef<string | null>(null)
+  useEffect(() => {
+    const id = activeIncident?.incidentId ?? null
+    if (id && id !== lastFocusedIncidentRef.current) {
+      lastFocusedIncidentRef.current = id
+      document.getElementById('stage-incident')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    } else if (!id) {
+      lastFocusedIncidentRef.current = null
+    }
+  }, [activeIncident?.incidentId])
+
   const incidentId = displayIncident?.incidentId ?? 'none'
   const healthFlashKey = `${deviceState?.serviceStatus ?? 'none'}|${displayIncident?.state ?? 'none'}`
   const incidentFlashKey = `${incidentId}|${displayIncident?.state ?? 'none'}`
@@ -239,6 +297,12 @@ export function DashboardPage() {
         <p className="subtitle">
           Detect &rarr; Investigate &rarr; Remediate &rarr; Validate &rarr; Resolve
         </p>
+        <div className="arch-strip" aria-label="Powered by">
+          <span className="arch-pill">Gemini 2.5</span>
+          <span className="arch-pill">Vertex Agent Builder &middot; ADK</span>
+          <span className="arch-pill">Elastic MCP</span>
+          <span className="arch-pill arch-pill-human">Human-in-the-loop approval</span>
+        </div>
       </header>
 
       {/* Page-level mood: a single at-a-glance read of the before/failure/after
@@ -388,7 +452,7 @@ export function DashboardPage() {
           />
         </FlowStage>
 
-        <FlowStage step={2} label="Incident Timeline" flow="Detect" className="flow-incident" flashKey={incidentFlashKey}>
+        <FlowStage step={2} label="Incident Timeline" flow="Detect" className="flow-incident" flashKey={incidentFlashKey} id="stage-incident">
           <article
             className={`status-card incident-panel ${activeIncident ? 'incident-active' : 'incident-idle'}`}
             aria-label="Incident Timeline"
@@ -405,57 +469,101 @@ export function DashboardPage() {
                   : 'No active incident for this endpoint right now.'}
             </p>
 
+            {/* Live "what's happening now" banner + elapsed timer makes the self-driving
+                lifecycle impossible to miss while an incident is in flight. */}
+            {activeIncident ? (
+              <div className={`incident-live-banner tone-${activeStageTone(activeIncident.state)}`} role="status">
+                <span className="incident-live-dot" aria-hidden="true" />
+                <span className="incident-live-stage">{activeStageLabel(activeIncident.state)}</span>
+                <span className="incident-live-timer" aria-label="Elapsed since detection">
+                  {activeElapsed}
+                </span>
+              </div>
+            ) : null}
+
             <div className="incident-lifecycle">
               <LifecycleStrip incident={displayIncident} />
             </div>
 
-            <div className="incident-details">
-              <dl className="metrics-grid">
-                <div>
-                  <dt>Incident ID</dt>
-                  <dd>{displayIncident?.incidentId ?? 'N/A'}</dd>
-                </div>
-                <div>
-                  <dt>State</dt>
-                  <dd>{displayIncident?.state ?? 'healthy'}</dd>
-                </div>
-                <div>
-                  <dt>Severity</dt>
-                  <dd>{displayIncident?.severity ?? 'low'}</dd>
-                </div>
-                <div>
-                  <dt>Detected</dt>
-                  <dd>{displayIncident ? formatTimestamp(displayIncident.detectedAt) : 'N/A'}</dd>
-                </div>
-              </dl>
-            </div>
+            {/* The metrics grid is meaningful only with a real incident; hiding it when
+                idle keeps the card from reading as a wall of N/A. */}
+            {displayIncident ? (
+              <div className="incident-details">
+                <dl className="metrics-grid">
+                  <div>
+                    <dt>Incident ID</dt>
+                    <dd>{displayIncident.incidentId}</dd>
+                  </div>
+                  <div>
+                    <dt>State</dt>
+                    <dd>{displayIncident.state}</dd>
+                  </div>
+                  <div>
+                    <dt>Severity</dt>
+                    <dd>
+                      <span className={`severity-pill severity-${displayIncident.severity}`}>
+                        {displayIncident.severity}
+                      </span>
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>Detected</dt>
+                    <dd>{formatTimestamp(displayIncident.detectedAt)}</dd>
+                  </div>
+                </dl>
+              </div>
+            ) : null}
           </article>
         </FlowStage>
 
-        <FlowStage step={3} label="AI Investigation" flow="Investigate" className="flow-investigation" flashKey={investigationFlashKey}>
-          <AiInvestigationPanel incident={displayIncident} deviceState={deviceState ?? undefined} />
-        </FlowStage>
+        {displayIncident ? (
+          <>
+            <FlowStage step={3} label="AI Investigation" flow="Investigate" className="flow-investigation" flashKey={investigationFlashKey}>
+              <AiInvestigationPanel incident={displayIncident} deviceState={deviceState ?? undefined} />
+            </FlowStage>
 
-        {/* Approval and execution are presented as one governance -> action
-            sequence: the operator approves, then the same authorization flows
-            into real endpoint execution. The connector reinforces that order. */}
-        <FlowStage step={4} label="Approval & Execution" flow="Approve → Act" className="flow-remediation" flashKey={remediationFlashKey}>
-          <div className="remediation-sequence">
-            <RemediationApprovalCard incident={displayIncident} />
-            <div className="sequence-connector" aria-hidden="true">
-              <span>→</span>
-            </div>
-            <RemediationExecutionPanel incident={displayIncident} />
-          </div>
-        </FlowStage>
+            {/* Approval and execution are presented as one governance -> action
+                sequence: the operator approves, then the same authorization flows
+                into real endpoint execution. The connector reinforces that order. */}
+            <FlowStage step={4} label="Approval & Execution" flow="Approve → Act" className="flow-remediation" flashKey={remediationFlashKey}>
+              <div className="remediation-sequence">
+                <RemediationApprovalCard incident={displayIncident} />
+                <div className="sequence-connector" aria-hidden="true">
+                  <span>→</span>
+                </div>
+                <RemediationExecutionPanel incident={displayIncident} />
+              </div>
+            </FlowStage>
 
-        <FlowStage step={5} label="Recovery Validation" flow="Validate" className="flow-validation" flashKey={validationFlashKey}>
-          <ValidationPanel incident={displayIncident} />
-        </FlowStage>
+            <FlowStage step={5} label="Recovery Validation" flow="Validate" className="flow-validation" flashKey={validationFlashKey}>
+              <ValidationPanel incident={displayIncident} />
+            </FlowStage>
 
-        <FlowStage step={6} label="Final Summary" flow="Resolve" className="flow-summary" flashKey={summaryFlashKey}>
-          <FinalSummaryPanel incident={displayIncident} />
-        </FlowStage>
+            <FlowStage step={6} label="Final Summary" flow="Resolve" className="flow-summary" flashKey={summaryFlashKey}>
+              <FinalSummaryPanel incident={displayIncident} />
+            </FlowStage>
+          </>
+        ) : (
+          // Idle: collapse the four downstream stages into one compact preview so the
+          // page isn't a wall of empty cards before any incident exists.
+          <section className="flow-stage flow-pipeline-preview" aria-label="Remediation pipeline">
+            <article className="status-card pipeline-preview-card">
+              <div className="card-chip badge-placeholder">Pipeline idle</div>
+              <h2>Investigate &rarr; Approve &rarr; Remediate &rarr; Validate &rarr; Resolve</h2>
+              <p>
+                These stages activate the moment an incident is generated. Use{' '}
+                <strong>Simulate Service Failure</strong> above to start a run, then watch each
+                stage light up live.
+              </p>
+              <ol className="pipeline-preview-steps">
+                <li><span>3</span> AI Investigation</li>
+                <li><span>4</span> Approval &amp; Execution</li>
+                <li><span>5</span> Recovery Validation</li>
+                <li><span>6</span> Final Summary</li>
+              </ol>
+            </article>
+          </section>
+        )}
       </div>
     </main>
   )

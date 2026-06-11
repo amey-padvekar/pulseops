@@ -189,7 +189,15 @@ export function AiInvestigationPanel({ incident, deviceState }: AiInvestigationP
         // No terminal status yet → the AI is investigating. Surface the orchestration layer
         // here (investigationStatus is only set on completion) so judges see the tools in use.
         <div className="investigation-progress">
-          <p className="empty-log investigation-loading">Investigation in progress…</p>
+          <p className="empty-log investigation-loading">
+            <span className="ai-thinking-spinner" aria-hidden="true" />
+            Gemini is investigating
+            <span className="thinking-dots" aria-hidden="true">
+              <span>.</span>
+              <span>.</span>
+              <span>.</span>
+            </span>
+          </p>
           <div className="ai-orchestration" aria-label="Investigating via">
             <span className="ai-orchestration-label">Investigating via</span>
             <span className="card-chip badge-ai">Gemini</span>

@@ -2399,3 +2399,325 @@ p.empty-log.summary-loading {
   background: #dbeafe;
   border-color: #93c5fd;
 }
+
+/* ============================================================================
+   Hackathon polish pass: idle clarity, live-incident drama, AI "thinking",
+   architecture strip, severity colours, and a resolved celebration.
+   ============================================================================ */
+
+/* --- Architecture / compliance strip (on the dark header) --- */
+.arch-strip {
+  margin-top: 0.85rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.arch-pill {
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  padding: 0.22rem 0.6rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.1);
+  color: #dbeafe;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+}
+
+.arch-pill-human {
+  background: rgba(134, 239, 172, 0.16);
+  color: #bbf7d0;
+  border-color: rgba(134, 239, 172, 0.36);
+}
+
+/* --- Calm idle hero (no device connected reads neutral, not red) --- */
+.hero-idle {
+  border-left-color: #94a3b8;
+  background: linear-gradient(180deg, #f8fafc 0%, #fff 60%);
+}
+
+.hero-idle .hero-dot {
+  background: #94a3b8;
+  box-shadow: 0 0 0 6px rgba(148, 163, 184, 0.18);
+}
+
+.hero-muted {
+  color: var(--color-text-muted);
+}
+
+/* --- Live incident banner: current stage + elapsed timer --- */
+.incident-live-banner {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-top: 0.7rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: 10px;
+  border: 1px solid transparent;
+}
+
+.incident-live-dot {
+  width: 0.7rem;
+  height: 0.7rem;
+  border-radius: 50%;
+  flex-shrink: 0;
+  animation: mood-pulse 1.4s ease-in-out infinite;
+}
+
+.incident-live-stage {
+  font-weight: 700;
+}
+
+.incident-live-timer {
+  margin-left: auto;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  font-size: 1.05rem;
+}
+
+.incident-live-banner.tone-danger {
+  background: rgba(220, 38, 38, 0.06);
+  border-color: #fecaca;
+}
+
+.incident-live-banner.tone-danger .incident-live-dot {
+  background: #dc2626;
+}
+
+.incident-live-banner.tone-danger .incident-live-stage,
+.incident-live-banner.tone-danger .incident-live-timer {
+  color: #991b1b;
+}
+
+.incident-live-banner.tone-info {
+  background: rgba(37, 99, 235, 0.07);
+  border-color: #bfdbfe;
+}
+
+.incident-live-banner.tone-info .incident-live-dot {
+  background: #2563eb;
+}
+
+.incident-live-banner.tone-info .incident-live-stage,
+.incident-live-banner.tone-info .incident-live-timer {
+  color: #1d4ed8;
+}
+
+/* --- Severity pill --- */
+.severity-pill {
+  display: inline-block;
+  border-radius: 999px;
+  padding: 0.12rem 0.55rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  border: 1px solid transparent;
+}
+
+.severity-low {
+  background: #e2e8f0;
+  color: #475569;
+  border-color: #cbd5e1;
+}
+
+.severity-medium {
+  background: #fef3c7;
+  color: #b45309;
+  border-color: #fde68a;
+}
+
+.severity-high {
+  background: #ffe4e6;
+  color: #be123c;
+  border-color: #fecdd3;
+}
+
+.severity-critical {
+  background: #fee2e2;
+  color: #991b1b;
+  border-color: #fca5a5;
+}
+
+/* --- Idle pipeline preview (collapses the four empty downstream cards) --- */
+.flow-pipeline-preview {
+  grid-column: 1 / -1;
+}
+
+.pipeline-preview-card {
+  border-left: 4px solid #cbd5e1;
+}
+
+.pipeline-preview-steps {
+  list-style: none;
+  margin: 0.85rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.pipeline-preview-steps li {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.4rem 0.75rem;
+  border: 1px dashed var(--color-divider);
+  border-radius: 999px;
+  color: var(--color-text-muted);
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.pipeline-preview-steps li span {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.3rem;
+  height: 1.3rem;
+  border-radius: 50%;
+  background: #e2e8f0;
+  color: #475569;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+/* --- AI "thinking" treatment during investigation --- */
+.ai-thinking-spinner {
+  display: inline-block;
+  width: 0.8rem;
+  height: 0.8rem;
+  margin-right: 0.45rem;
+  border: 2px solid var(--state-warn, #f59e0b);
+  border-top-color: transparent;
+  border-radius: 50%;
+  vertical-align: -0.1rem;
+  animation: ai-spin 0.7s linear infinite;
+}
+
+@keyframes ai-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.thinking-dots span {
+  animation: thinking-blink 1.4s infinite both;
+}
+
+.thinking-dots span:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.thinking-dots span:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
+@keyframes thinking-blink {
+  0%,
+  80%,
+  100% {
+    opacity: 0.2;
+  }
+  40% {
+    opacity: 1;
+  }
+}
+
+/* Orchestration chips gently pulse in sequence while the AI works. */
+.ai-orchestration .badge-ai {
+  animation: chip-pulse 1.6s ease-in-out infinite;
+}
+
+.ai-orchestration .badge-ai:nth-child(3) {
+  animation-delay: 0.25s;
+}
+
+.ai-orchestration .badge-ai:nth-child(4) {
+  animation-delay: 0.5s;
+}
+
+@keyframes chip-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.55;
+  }
+}
+
+/* Root cause / result "lands" with a soft reveal. */
+.investigation-result {
+  animation: ai-reveal 420ms ease-out;
+}
+
+@keyframes ai-reveal {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* --- Resolved celebration --- */
+.hero-resolved .hero-dot {
+  animation: resolved-ring 900ms ease-out;
+}
+
+@keyframes resolved-ring {
+  0% {
+    box-shadow: 0 0 0 0 rgba(22, 163, 74, 0.5);
+  }
+  100% {
+    box-shadow: 0 0 0 22px rgba(22, 163, 74, 0);
+  }
+}
+
+.hero-flag-recovered {
+  animation: flag-pop 500ms ease-out;
+}
+
+@keyframes flag-pop {
+  0% {
+    transform: scale(0.6);
+    opacity: 0;
+  }
+  60% {
+    transform: scale(1.12);
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+/* Make Download Report the prominent CTA on a resolved report. */
+.summary-ready .summary-download-button {
+  background: #16a34a;
+  border-color: #15803d;
+  color: #fff;
+  font-size: 0.85rem;
+  padding: 0.42rem 0.95rem;
+}
+
+.summary-ready .summary-download-button:hover {
+  background: #15803d;
+  border-color: #166534;
+}
+
+/* Respect reduced-motion for the new animations too. */
+@media (prefers-reduced-motion: reduce) {
+  .incident-live-dot,
+  .ai-thinking-spinner,
+  .thinking-dots span,
+  .ai-orchestration .badge-ai,
+  .investigation-result,
+  .hero-resolved .hero-dot,
+  .hero-flag-recovered {
+    animation: none !important;
+  }
+}

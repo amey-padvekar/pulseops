@@ -13,6 +13,7 @@ type HeroState =
   | 'resolved'
   | 'failed'
   | 'unknown'
+  | 'idle'
 
 type EndpointHeroProps = {
   deviceState?: DeviceState
@@ -30,6 +31,7 @@ const HERO_COPY: Record<HeroState, { word: string; sub: string }> = {
   resolved: { word: 'Resolved', sub: 'Service restored after incident' },
   failed: { word: 'Action Failed', sub: 'Remediation did not restore service' },
   unknown: { word: 'Unknown', sub: 'Awaiting telemetry' },
+  idle: { word: 'Idle', sub: 'No device connected — run a simulation to begin' },
 }
 
 function formatTimeUTC(timestamp: string | undefined): string {
@@ -71,7 +73,9 @@ function deriveHeroState(deviceState: DeviceState | undefined, incident: Inciden
     case 'stopped':
       return 'stopped'
     default:
-      return 'unknown'
+      // No telemetry yet. With no incident either, this is a calm idle baseline
+      // (e.g. no device connected), not a problem state — so it reads neutral, not red.
+      return incident ? 'unknown' : 'idle'
   }
 }
 
@@ -129,13 +133,19 @@ export function EndpointHero({ deviceState, incident, telemetryConnected }: Endp
         <div>
           <dt>Connectivity</dt>
           <dd>
-            <span className={heartbeatOk ? 'hero-ok' : 'hero-bad'}>
-              {heartbeatOk ? 'heartbeat' : 'no heartbeat'}
-            </span>
-            {' · '}
-            <span className={networkOk ? 'hero-ok' : 'hero-bad'}>
-              {networkOk ? 'network up' : 'network down'}
-            </span>
+            {deviceState ? (
+              <>
+                <span className={heartbeatOk ? 'hero-ok' : 'hero-bad'}>
+                  {heartbeatOk ? 'heartbeat' : 'no heartbeat'}
+                </span>
+                {' · '}
+                <span className={networkOk ? 'hero-ok' : 'hero-bad'}>
+                  {networkOk ? 'network up' : 'network down'}
+                </span>
+              </>
+            ) : (
+              <span className="hero-muted">awaiting telemetry</span>
+            )}
           </dd>
         </div>
         <div>
